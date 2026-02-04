@@ -7,17 +7,166 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import io
+import io, math
 from django.http import HttpResponse
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY  # Importar constantes de alinhamento
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from reportlab.lib import colors
+from io import BytesIO
+from pyproj import Transformer
+from reportlab.pdfbase.pdfmetrics import stringWidth
+
+
+#Calcular Largura da coluna Confrontantes
+
+def calcular_largura_confrontantes(tabela_dados, coluna=4, fonte='Times-Roman', tamanho=10):
+    maior_largura = 0.0
+
+    for linha in tabela_dados:
+        texto = str(linha[coluna])
+        largura = float(stringWidth(texto, fonte, tamanho))
+
+        if largura > maior_largura:
+            maior_largura = largura
+
+    return maior_largura + 15
+
+
+# Calcular Azimute
+
+def gms_para_decimal(valor):
+    """
+    Converte '48°28'11.37" O' ou '27°12'33.12" S' para decimal
+    """
+    valor = valor.strip().replace(",", ".")
+
+    if "°" in valor:
+        direcao = valor[-1].upper()
+
+        valor = valor.replace("O", "").replace("W", "").replace("S", "").replace("N", "")
+        graus, resto = valor.split("°")
+        minutos, resto = resto.split("'")
+        segundos = resto.replace('"', "").strip()
+
+        decimal = float(graus) + float(minutos)/60 + float(segundos)/3600
+
+        if direcao in ["O", "W", "S"]:
+            decimal = -decimal
+
+        return decimal
+
+    return float(valor)
+
+def br(valor, casas=2):
+    try:
+        return f"{float(valor):.{casas}f}".replace(".", ",")
+    except:
+        return "0,00"
+
+
+def br_coord(valor, casas=3):
+    try:
+        return f"{float(valor):.{casas}f}".replace(".", ",")
+    except:
+        return "0,000"
+
+
+def decimal_para_gms(angulo):
+    graus = int(angulo)
+    minutos_float = (angulo - graus) * 60
+    minutos = int(minutos_float)
+    segundos = (minutos_float - minutos) * 60
+    return f"{graus}°{minutos:02d}'{segundos:05.2f}\""
+
+def calcular_azimute_utm(e1, n1, e2, n2):
+    delta_e = e2 - e1
+    delta_n = n2 - n1
+
+    azimute = math.degrees(math.atan2(delta_e, delta_n))
+    azimute = (azimute + 360) % 360
+
+    return decimal_para_gms(azimute)
+
+def calcular_azimute(lat1, lon1, lat2, lon2):
+    lat1 = math.radians(gms_para_decimal(lat1))
+    lon1 = math.radians(gms_para_decimal(lon1))
+    lat2 = math.radians(gms_para_decimal(lat2))
+    lon2 = math.radians(gms_para_decimal(lon2))
+
+
+    dlon = lon2 - lon1
+
+    x = math.sin(dlon) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+
+    azimute = math.degrees(math.atan2(x, y))
+    azimute = (azimute + 360) % 360
+
+    return decimal_para_gms(azimute)
+
+def importar_utm(request, projeto_id):
+    projeto = get_object_or_404(Projeto, id=projeto_id)
+
+    if request.method == "POST":
+        arquivo = request.FILES.get("arquivo_utm")
+
+        if not arquivo:
+            messages.error(request, "Nenhum arquivo enviado.")
+            return redirect("editar_projeto", projeto_id=projeto_id)
+
+        linhas = arquivo.read().decode("utf-8").splitlines()
+        atualizados = 0
+        ignorados = 0
+        erros = 0
+
+        for linha in linhas:
+            try:
+                if not linha.strip():
+                    continue
+
+                partes = linha.split(",")
+
+                nome = partes[0].strip()                # V01
+                este = partes[1].strip().replace(",", ".")  # 755924.694
+                norte = partes[2].strip().replace(",", ".") # 6956938.013
+
+                # Converte para float
+                este = float(este)
+                norte = float(norte)
+
+                # Busca o vértice pelo nome dentro do projeto
+                vertice = Vertice.objects.filter(nome=nome, projeto=projeto).first()
+
+                if not vertice:
+                    ignorados += 1
+                    continue
+
+                # Atualiza
+                vertice.utm_e = este
+                vertice.utm_n = norte
+                vertice.save()
+
+                atualizados += 1
+
+            except Exception as e:
+                print("Erro linha:", linha, e)
+                erros += 1
+
+        messages.success(
+            request,
+            f"Importação concluída! Atualizados: {atualizados}, Ignorados: {ignorados}, Erros: {erros}"
+        )
+
+        return redirect("editar_projeto", projeto_id=projeto_id)
+
+    return redirect("editar_projeto", projeto_id=projeto_id)
+
 
 
 # View de login
@@ -39,21 +188,8 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-# Exemplo: Proteger a view de geração de PDF
+# View principal
 @login_required
-def gerar_pdf(request, projeto_id):
-    # Seu código existente para geração de PDF
-    # Exemplo: apenas usuários autenticados podem acessar essa view
-    projeto = Projeto.objects.get(id=projeto_id)
-    beneficiarios = projeto.beneficiarios.all()
-    confrontantes = projeto.confrontantes.all()
-    
-    # Seu código de geração de PDF aqui...
-    elements = []
-    # (Código anterior para gerar o PDF, como a tabela de assinaturas, etc.)
-    
-    return render(request, 'levantamento/index.html', {'elements': elements})
-
 def index(request):
     projetos = Projeto.objects.all()
     beneficiarios = []
@@ -90,6 +226,7 @@ def index(request):
 
         elif action == 'add_projeto':
             nome = request.POST.get('nome_projeto')
+            inscricao_imobiliaria = request.POST.get('inscricao_imobiliaria')
             endereco = request.POST.get('endereco_projeto')
             area = request.POST.get('area_projeto')
             perimetro = request.POST.get('perimetro_projeto')
@@ -98,6 +235,7 @@ def index(request):
             try:
                 projeto = Projeto.objects.create(
                     nome=nome,
+                    inscricao_imobiliaria=inscricao_imobiliaria,
                     endereco=endereco,
                     area=float(area),
                     perimetro=float(perimetro),
@@ -352,13 +490,18 @@ def index(request):
                         de_vertice, para_vertice, longitude, latitude, distancia, confrontante_nome = campos[:6]
                         confrontante_cpf_cnpj = campos[6] if len(campos) > 6 else ''
                         
+                        utm_n = float(campos[6].replace(",", "."))
+                        utm_e = float(campos[7].replace(",", "."))
+
                         vertice_data = {
                             'projeto': projeto,
                             'de_vertice': de_vertice,
                             'para_vertice': para_vertice,
                             'longitude': longitude,
                             'latitude': latitude,
-                            'distancia': float(distancia),
+                            'utm_n': utm_n,
+                            'utm_e': utm_e,
+                            'distancia': float(distancia.replace(",", ".")),
                             'confrontante_texto': confrontante_nome
                         }
                         if confrontante_cpf_cnpj:
@@ -379,13 +522,68 @@ def index(request):
             else:
                 messages.error(request, 'Selecione um projeto e um arquivo TXT.')
 
+        elif action == 'importar_utm':
+            projeto_id = request.POST.get('projeto_ver')
+            arquivo = request.FILES.get('arquivo_utm')
+
+            if projeto_id and arquivo:
+                try:
+                    projeto = Projeto.objects.get(id=projeto_id)
+                    vertices = Vertice.objects.filter(projeto=projeto).order_by("id")
+
+                    try:
+                        linhas = arquivo.read().decode("utf-8").splitlines()
+                    except UnicodeDecodeError:
+                        arquivo.seek(0)
+                        linhas = arquivo.read().decode("latin-1").splitlines()
+
+                    if len(linhas) != vertices.count():
+                        messages.error(request, "Quantidade de linhas no arquivo não confere com os vértices.")
+                        return redirect("index")
+
+                    atualizados = 0
+
+                    for i, linha in enumerate(linhas):
+                        partes = linha.replace(",", " ").split()
+
+                        utm_n = float(partes[-2].replace(",", "."))
+                        utm_e = float(partes[-1].replace(",", "."))
+
+                        vertice = vertices[i]
+
+                        # ✅ SOMENTE SE NÃO TIVER UTM AINDA
+                        if not vertice.utm_n or not vertice.utm_e:
+                            vertice.utm_n = utm_n
+                            vertice.utm_e = utm_e
+                            vertice.save()
+                            atualizados += 1
+
+                    messages.success(request, f"{atualizados} vértices atualizados com UTM.")
+                except Projeto.DoesNotExist:
+                    messages.error(request, "Projeto não encontrado.")
+                except Exception as e:
+                    messages.error(request, f"Erro ao importar UTM: {str(e)}")
+            else:
+                messages.error(request, "Selecione um projeto e um arquivo.")
+
+
         elif action == 'add_vertice':
             projeto_id = request.POST.get('projeto_ver')
             de_vertice = request.POST.get('de_vertice')
             para_vertice = request.POST.get('para_vertice')
             longitude = request.POST.get('longitude_ver')
             latitude = request.POST.get('latitude_ver')
-            distancia = request.POST.get('distancia_ver')
+            distancia = request.POST.get('distancia_ver') or request.POST.get('edit_distancia_ver')
+            if distancia:
+                distancia = distancia.replace(",", ".")
+                try:
+                    distancia = float(distancia)
+                except ValueError:
+                    distancia = 0.0
+            else:
+                distancia = 0.0
+            utm_n = request.POST.get('utm_n_ver')
+            utm_e = request.POST.get('utm_e_ver')
             confrontante_id = request.POST.get('confrontante_ver')
             confrontante_texto = request.POST.get('confrontante_texto')
             try:
@@ -398,6 +596,8 @@ def index(request):
                     'longitude': longitude,
                     'latitude': latitude,
                     'distancia': distancia,
+                    'utm_n': utm_n,
+                    'utm_e': utm_e,
                     'confrontante_texto': confrontante_texto
                 }
                 if confrontante_id:
@@ -422,6 +622,20 @@ def index(request):
             longitude = request.POST.get('longitude_ver')
             latitude = request.POST.get('latitude_ver')
             distancia = request.POST.get('distancia_ver')
+            utm_n_raw = request.POST.get('utm_n_raw')
+            utm_e_raw = request.POST.get('utm_e_raw')
+
+
+            
+            # ✅ CORREÇÃO DEFINITIVA PARA VÍRGULA
+            if distancia:
+                distancia = distancia.replace(",", ".")
+                try:
+                    distancia = float(distancia)
+                except ValueError:
+                    distancia = 0.0
+            else:
+                distancia = 0.0
             confrontante_id = request.POST.get('confrontante_ver')
             confrontante_texto = request.POST.get('confrontante_texto')
             try:
@@ -432,6 +646,8 @@ def index(request):
                 vertice.longitude = longitude
                 vertice.latitude = latitude
                 vertice.distancia = distancia
+                vertice.utm_n = utm_n
+                vertice.utm_e = utm_e
                 vertice.confrontante_texto = confrontante_texto
                 if confrontante_id:
                     confrontante = Confrontante.objects.get(id=confrontante_id)
@@ -461,347 +677,6 @@ def index(request):
             except Exception as e:
                 messages.error(request, f'Erro ao excluir vértice: {str(e)}')
 
-        elif action == 'gerar_memorial':
-            projeto_id = request.POST.get('projeto_memorial')
-            try:
-                projeto = Projeto.objects.get(id=projeto_id)
-                vertices = Vertice.objects.filter(projeto=projeto)
-                beneficiarios = Beneficiario.objects.filter(projeto=projeto)
-                confrontantes = Confrontante.objects.filter(projeto=projeto)
-
-                # Log para depuração
-                print(f"Projeto ID: {projeto_id}")
-                print(f"Beneficiários encontrados: {len(beneficiarios)}")
-                print(f"Confrontantes encontrados: {len(confrontantes)}")
-                print(f"Vértices encontrados: {len(vertices)}")
-
-                doc = Document()
-
-                # Definir margens (2,5 cm em todos os lados)
-                for section in doc.sections:
-                    section.left_margin = Cm(2.5)
-                    section.right_margin = Cm(2.5)
-                    section.top_margin = Cm(2.5)
-                    section.bottom_margin = Cm(2.5)
-
-                # Definir fonte padrão para o documento
-                style = doc.styles['Normal']
-                font = style.font
-                font.name = 'Times New Roman'
-                font.size = Pt(12)
-
-                # Título principal
-                doc.add_paragraph()  # Linha em branco
-                doc.add_paragraph()  # Linha em branco
-                title = doc.add_heading('MEMORIAL DESCRITIVO', 0)
-                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                title.runs[0].font.name = 'Times New Roman'
-                title.runs[0].font.size = Pt(16)
-                title.runs[0].bold = True
-                title.runs[0].underline = True
-                doc.add_paragraph()  # Linha em branco
-                doc.add_paragraph()  # Linha em branco
-
-                # Seção 1: Beneficiário(s)
-                heading_1 = doc.add_heading('1. Beneficiário(s):', level=1)
-                heading_1.runs[0].font.name = 'Times New Roman'
-                heading_1.runs[0].font.size = Pt(14)
-                heading_1.runs[0].bold = True
-
-                # Tabela de beneficiários
-                table_ben = doc.add_table(rows=1 if not beneficiarios else len(beneficiarios), cols=2)
-                table_ben.style = 'Table Grid'
-                table_ben.autofit = False
-                column_widths_ben = [Cm(8.0), Cm(8.0)]
-                for col_idx, width in enumerate(column_widths_ben):
-                    for cell in table_ben.columns[col_idx].cells:
-                        tcPr = cell._tc.get_or_add_tcPr()
-                        tcW = OxmlElement('w:tcW')
-                        tcW.set(qn('w:w'), str(int(width * 567)))
-                        tcW.set(qn('w:type'), 'dxa')
-                        tcPr.append(tcW)
-
-                if beneficiarios:
-                    for idx, ben in enumerate(beneficiarios):
-                        row_cells = table_ben.rows[idx].cells
-                        row_cells[0].text = ben.nome
-                        row_cells[1].text = f"- CPF: {ben.cpf_cnpj}"
-                        for cell in row_cells:
-                            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
-                            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                            cell.paragraphs[0].runs[0].font.name = 'Times New Roman'
-                            cell.paragraphs[0].runs[0].font.size = Pt(12)
-                            if cell == row_cells[0]:
-                                cell.paragraphs[0].runs[0].bold = True
-                else:
-                    row_cells = table_ben.rows[0].cells
-                    row_cells[0].text = "Nenhum beneficiário registrado."
-                    row_cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    row_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                    row_cells[0].paragraphs[0].runs[0].font.name = 'Times New Roman'
-                    row_cells[0].paragraphs[0].runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 2: Localização do Imóvel
-                heading_2 = doc.add_heading('2. Localização do Imóvel:', level=1)
-                heading_2.runs[0].font.name = 'Times New Roman'
-                heading_2.runs[0].font.size = Pt(14)
-                heading_2.runs[0].bold = True
-
-                p = doc.add_paragraph(f"{projeto.endereco}")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 3: Área
-                heading_3 = doc.add_heading('3. Área:', level=1)
-                heading_3.runs[0].font.name = 'Times New Roman'
-                heading_3.runs[0].font.size = Pt(14)
-                heading_3.runs[0].bold = True
-
-                p = doc.add_paragraph(f"{projeto.area}m²")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 4: Perímetro
-                heading_4 = doc.add_heading('4. Perímetro:', level=1)
-                heading_4.runs[0].font.name = 'Times New Roman'
-                heading_4.runs[0].font.size = Pt(14)
-                heading_4.runs[0].bold = True
-
-                p = doc.add_paragraph(f"{projeto.perimetro} m")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 5: Época da Medição
-                heading_5 = doc.add_heading('5. Época da Medição:', level=1)
-                heading_5.runs[0].font.name = 'Times New Roman'
-                heading_5.runs[0].font.size = Pt(14)
-                heading_5.runs[0].bold = True
-
-                p = doc.add_paragraph(f"{projeto.epoca_medicao}")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 6: Instrumento Utilizado
-                heading_6 = doc.add_heading('6. Instrumento Utilizado:', level=1)
-                heading_6.runs[0].font.name = 'Times New Roman'
-                heading_6.runs[0].font.size = Pt(14)
-                heading_6.runs[0].bold = True
-
-                p = doc.add_paragraph(f"{projeto.instrumento}")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 7: Sistema Geodésico de Referência
-                heading_7 = doc.add_heading('7. Sistema Geodésico de Referência:', level=1)
-                heading_7.runs[0].font.name = 'Times New Roman'
-                heading_7.runs[0].font.size = Pt(14)
-                heading_7.runs[0].bold = True
-
-                p = doc.add_paragraph("SIRGAS 2000")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 8: Projeção Cartográfica de Distância e Área
-                heading_8 = doc.add_heading('8. Projeção Cartográfica de Distância e Área:', level=1)
-                heading_8.runs[0].font.name = 'Times New Roman'
-                heading_8.runs[0].font.size = Pt(14)
-                heading_8.runs[0].bold = True
-
-                p = doc.add_paragraph("UTM")
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p.paragraph_format.first_line_indent = Cm(1.25)
-                p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Seção 9: Tabela de Coordenadas, Confrontações e Medidas
-                heading_9 = doc.add_heading('9. Tabela de Coordenadas, Confrontações e Medidas:', level=1)
-                heading_9.runs[0].font.name = 'Times New Roman'
-                heading_9.runs[0].font.size = Pt(14)
-                heading_9.runs[0].bold = True
-
-                # Criar tabela
-                table = doc.add_table(rows=2 if not vertices else len(vertices) + 1, cols=6)
-                table.style = 'Table Grid'
-                table.autofit = False
-
-                # Definir larguras das colunas
-                column_widths = [Cm(2.0), Cm(1.5), Cm(3.5), Cm(3.5), Cm(2.0), Cm(3.5)]
-                for col_idx, width in enumerate(column_widths):
-                    for cell in table.columns[col_idx].cells:
-                        tcPr = cell._tc.get_or_add_tcPr()
-                        tcW = OxmlElement('w:tcW')
-                        tcW.set(qn('w:w'), str(int(width * 567)))
-                        tcW.set(qn('w:type'), 'dxa')
-                        tcPr.append(tcW)
-
-                # Cabeçalho da tabela
-                headers = ['DE', 'PARA', 'LONGITUDE', 'LATITUDE', 'DIST.', 'CONFRONTANTE']
-                for i, header in enumerate(headers):
-                    cell = table.rows[0].cells[i]
-                    cell.text = header
-                    cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                    shading_elm = OxmlElement('w:shd')
-                    shading_elm.set(qn('w:fill'), 'D3D3D3')
-                    cell._tc.get_or_add_tcPr().append(shading_elm)
-                    cell.paragraphs[0].runs[0].font.name = 'Times New Roman'
-                    cell.paragraphs[0].runs[0].font.size = Pt(10)
-                    cell.paragraphs[0].runs[0].bold = True
-
-                # Preencher a tabela com os vértices ou mensagem de vazio
-                if vertices:
-                    for idx, ver in enumerate(vertices, start=1):
-                        row_cells = table.rows[idx].cells
-                        row_cells[0].text = str(ver.de_vertice)
-                        row_cells[1].text = str(ver.para_vertice)
-                        row_cells[2].text = str(ver.longitude)
-                        row_cells[3].text = str(ver.latitude)
-                        row_cells[4].text = f'{float(ver.distancia)} m'
-                        row_cells[5].text = str(ver.confrontante.nome if ver.confrontante else ver.confrontante_texto)
-
-                        for cell in row_cells:
-                            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                            cell.paragraphs[0].runs[0].font.name = 'Times New Roman'
-                            cell.paragraphs[0].runs[0].font.size = Pt(10)
-                else:
-                    row_cells = table.rows[1].cells
-                    row_cells[0].text = "Nenhum vértice registrado."
-                    row_cells[0].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    row_cells[0].vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-                    row_cells[0].paragraphs[0].runs[0].font.name = 'Times New Roman'
-                    row_cells[0].paragraphs[0].runs[0].font.size = Pt(10)
-
-                doc.add_paragraph()
-                doc.add_paragraph()
-
-                # Local e Data
-                p = doc.add_paragraph(f"{projeto.endereco.split(',')[-1].strip()}, 23 de Dezembro de 2024.")
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-
-                # Assinatura do Responsável Técnico
-                p = doc.add_paragraph("__________________________________________________")
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                p = doc.add_paragraph("Everton Valdir Pinto Vieira")
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-                p.runs[0].bold = True
-
-                p = doc.add_paragraph("Resp. Técnico Técnico em Agrimensura")
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                p = doc.add_paragraph("CFT/CRT4025.441.619-57")
-                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p.runs[0].font.name = 'Times New Roman'
-                p.runs[0].font.size = Pt(12)
-
-                doc.add_paragraph()
-
-                # Tabela de Assinaturas (Beneficiários e Confrontantes)
-                all_signatures = [(ben.nome, ben.cpf_cnpj, "Beneficiário") for ben in beneficiarios] + \
-                                [(con.nome, con.cpf_cnpj, "Confrontante") for con in confrontantes]
-                rows = max(1, (len(all_signatures) + 1) // 2)  # Pelo menos 1 linha
-                table_sign = doc.add_table(rows=rows, cols=3)
-                table_sign.style = None
-                table_sign.autofit = False
-                column_widths_sign = [Cm(8.0), Cm(1.0), Cm(7.0)]
-                for col_idx, width in enumerate(column_widths_sign):
-                    for cell in table_sign.columns[col_idx].cells:
-                        tcPr = cell._tc.get_or_add_tcPr()
-                        tcW = OxmlElement('w:tcW')
-                        tcW.set(qn('w:w'), str(int(width * 567)))
-                        tcW.set(qn('w:type'), 'dxa')
-                        tcPr.append(tcW)
-
-                if all_signatures:
-                    for idx, (nome, cpf_cnpj, tipo) in enumerate(all_signatures):
-                        row_idx = idx // 2
-                        col_idx = 0 if idx % 2 == 0 else 2
-                        cell = table_sign.rows[row_idx].cells[col_idx]
-                        p = cell.paragraphs[0]
-                        run = p.add_run(f"{nome}\nCPF: {cpf_cnpj}\n{tipo}")
-                        run.font.name = 'Times New Roman'
-                        run.font.size = Pt(12)
-                        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                        if nome in ["Alcides De Oliveira", "Maria Aparecida Trindade Oliveira"]:
-                            run.underline = True
-                else:
-                    cell = table_sign.rows[0].cells[0]
-                    p = cell.paragraphs[0]
-                    run = p.add_run("Nenhuma assinatura registrada.")
-                    run.font.name = 'Times New Roman'
-                    run.font.size = Pt(12)
-                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-
-                buffer = io.BytesIO()
-                doc.save(buffer)
-                buffer.seek(0)
-
-                response = HttpResponse(
-                    buffer.getvalue(),
-                    content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                )
-                response['Content-Disposition'] = f'attachment; filename="memorial_descritivo_{projeto.nome}.docx"'
-                return response
-            except Projeto.DoesNotExist:
-                messages.error(request, 'Projeto selecionado não existe.')
-            except Exception as e:
-                messages.error(request, f'Erro ao gerar memorial: {str(e)}')
-                print(f"Erro detalhado: {str(e)}")
-
         elif action == 'gerar_memorial_pdf':
             projeto_id = request.POST.get('projeto_memorial')
             try:
@@ -820,7 +695,7 @@ def index(request):
 
                 # Buffer para o PDF
                 buffer = io.BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2.5*cm, leftMargin=2.5*cm, topMargin=2.5*cm, bottomMargin=1.5*cm)
+                doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2.5*cm, leftMargin=2.5*cm, topMargin=2*cm, bottomMargin=1.5*cm)
                 elements = []
 
                 # Estilos
@@ -854,6 +729,16 @@ def index(request):
                     alignment=4,  # Justificado
                     leading=5  # Espaçamento de 1,5 linhas (12pt * 1.5 = 18pt)
                 )
+                descricao_style = ParagraphStyle(
+                    'DescricaoStyle',
+                    parent=styles['Normal'],
+                    fontName='Times-Roman',
+                    fontSize=12,
+                    spaceAfter=12,
+                    firstLineIndent=1.25*cm,
+                    alignment=TA_JUSTIFY,
+                    leading=18   # 12pt * 1,5 = ESPAÇAMENTO CORRETO
+                )
                 center_style = ParagraphStyle(
                     'CenterStyle',
                     parent=styles['Normal'],
@@ -870,23 +755,48 @@ def index(request):
                     spaceAfter=12,
                     alignment=0  # Left
                 )
+                # Estilo para seções (negrito, alinhado à esquerda)
+                section_style = ParagraphStyle(
+                    'SectionStyle',
+                    parent=styles['Normal'],
+                    fontName='Times-Roman',
+                    fontSize=14,
+                    spaceAfter=12,
+                    fontWeight='bold'
+                )
 
                 # Título principal
                 elements.append(Paragraph("MEMORIAL DESCRITIVO", title_style))
                 elements.append(Paragraph("<br/><br/>", normal_style))  # Linhas em branco
 
                 # Seção 1: Beneficiário(s)
-                elements.append(Paragraph("1. Beneficiário(s):", heading_style))
+                elements.append(Paragraph("1. Beneficiário(s):", section_style))
                 if beneficiarios:
+                    # Cabeçalho da tabela
+                    header_data = [["Nome", "CPF"]]
+                    header_table = Table(header_data, colWidths=[10*cm, 6*cm])
+                    header_table.setStyle(TableStyle([
+                        #('BACKGROUND', (0, 0), (-1, 0), '#d3d3d3'),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), '#000000'),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Times-Bold'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 12),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                        #('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ]))
+                    elements.append(header_table)
+
+                    # Dados dos beneficiários
                     data = []
                     for ben in beneficiarios:
-                        data.append([Paragraph(ben.nome, ParagraphStyle('Bold', fontName='Times-Bold', fontSize=12)), f" -   CPF: {ben.cpf_cnpj}"])
-                    table_ben = Table(data, colWidths=[8*cm, 8*cm])
+                        data.append([Paragraph(ben.nome, ParagraphStyle('Bold', fontName='Times-Bold', fontSize=12)), ben.cpf_cnpj,])
+                    table_ben = Table(data, colWidths=[10*cm, 6*cm])
                     table_ben.setStyle(TableStyle([
-                        #('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                         ('FONTNAME', (0, 0), (-1, -1), 'Times-Roman'),
                         ('FONTSIZE', (0, 0), (-1, -1), 12),
+                        ('ALIGN', (1, 0), (1, -1), 'CENTER'),  # Centralizar apenas a coluna CPF (índice 1)
+                        #('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                     ]))
                     elements.append(table_ben)
                 else:
@@ -895,17 +805,21 @@ def index(request):
 
                 # Seção 2: Localização do Imóvel
                 elements.append(Paragraph("2. Localização do Imóvel:", heading_style))
-                elements.append(Paragraph(f"{projeto.endereco}", normal_style))
+                
+                if projeto.inscricao_imobiliaria and projeto.inscricao_imobiliaria.strip():
+                    elements.append(Paragraph(f"Inscrição Imobiliária: {projeto.inscricao_imobiliaria}", normal_style))
+                
+                elements.append(Paragraph(f"{projeto.endereco}", descricao_style))
                 elements.append(Paragraph("<br/>", normal_style))
 
                 # Seção 3: Área
                 elements.append(Paragraph("3. Área:", heading_style))
-                elements.append(Paragraph(f"{projeto.area}m²", normal_style))
+                elements.append(Paragraph(f"{projeto.area}m²".replace(".",","), normal_style))
                 elements.append(Paragraph("<br/>", normal_style))
 
                 # Seção 4: Perímetro
                 elements.append(Paragraph("4. Perímetro:", heading_style))
-                elements.append(Paragraph(f"{projeto.perimetro} m", normal_style))
+                elements.append(Paragraph(f"{projeto.perimetro} m".replace(".",","), normal_style))
                 elements.append(Paragraph("<br/>", normal_style))
 
                 # Seção 5: Época da Medição
@@ -930,34 +844,192 @@ def index(request):
 
                 # Seção 9: Tabela de Coordenadas, Confrontações e Medidas
                 elements.append(Paragraph("9. Tabela de Coordenadas, Confrontações e Medidas:", heading_style))
-                data = [['DE', 'PARA', 'LONGITUDE', 'LATITUDE', 'DIST.(m)', 'CONFRONTANTE']]
+
+                data = [['VÉRTICE', 'LATITUDE', 'LONGITUDE', 'DIST.(m)', 'CONFRONTANTE']]
+
                 if vertices:
-                    for ver in vertices:
+                    for v in vertices:
                         data.append([
-                            str(ver.de_vertice),
-                            str(ver.para_vertice),
-                            str(ver.longitude),
-                            str(ver.latitude),
-                            f'{float(ver.distancia)} ',
-                            str(ver.confrontante.nome if ver.confrontante else ver.confrontante_texto)
+                            str(v.de_vertice),
+                            str(v.latitude),
+                            str(v.longitude).replace("O","W"),
+                            f'{float(v.distancia):.2f}'.replace(".",","),
+                            str(v.confrontante.nome if v.confrontante else v.confrontante_texto)
                         ])
                 else:
-                    data.append(["Nenhum vértice registrado.", "", "", "", "", ""])
-                table = Table(data, colWidths=[1.5*cm, 1.5*cm, 3*cm, 3*cm, 1.5*cm, 4.5*cm])
+                    data.append(["Nenhum vértice registrado.", "", "", "", ""])
+
+                #Largura Automáticas da coluna Confrontantes
+
+                largura_confrontantes = calcular_largura_confrontantes(data)
+                larguras = [2*cm, 3*cm, 3*cm, 2*cm, largura_confrontantes]
+
+                #Blindagem contra lista em qualquer coluna
+                # ✅ Larguras fixas e proporcionais à página A4
+                larguras = [
+                    2 * cm,    # Vértice
+                    3.2 * cm,  # Latitude
+                    3.2 * cm,  # Longitude
+                    2.5 * cm,  # Distância
+                    max(largura_confrontantes, 7 * cm)  # ✅ Nunca fica estreita
+                ]
+
+                # ✅ CRIA A TABELA CORRETAMENTE
+                table = Table(data, colWidths=larguras, repeatRows=1)
+
+                print("LARGURA CONFRONTANTES =>", largura_confrontantes, type(largura_confrontantes))
+
                 table.setStyle(TableStyle([
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                     ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
                     ('FONTNAME', (0, 0), (-1, -1), 'Times-Roman'),
                     ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    #Alinhamento Geral
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('FONTWEIGHT', (0, 0), (-1, 0), 'BOLD'),
+                    #Alinhamento a Esquerda Confrontantes
+                    ('ALIGN', (4,1), (4,-1), 'LEFT'),
                 ]))
+
                 elements.append(table)
                 elements.append(Paragraph("<br/><br/>", normal_style))
+                elements.append(Paragraph("<br/>", normal_style))
+
+                # Seção 10: Descrição Perimétrica
+                elements.append(Paragraph("10. Descrição Perimétrica:", heading_style))
+
+                #Paragraph("10. Observação Complementar:", heading_style)
+                #elements.append(Paragraph("O imóvel objeto deste memorial descritivo apresenta testada para duas vias públicas, sendo a Rua Maria Píres Linhares, no segmento entre os vértices V01 e V02, com extensão de 20,85 metros, e a Servidão Aristides Costa, no segmento entre os vértices V04 e V05, com extensão de 20,79 metros. Tal condição caracteriza o imóvel como de testada dupla, estando esta conformação representada na planta topográfica anexa e descrita na tabela de confrontações", normal_style))
+                #elements.append(Paragraph("<br/>", normal_style))
+
+
+                # if vertices and len(vertices) > 2:
+                #     lista_vertices = list(vertices)
+
+                #     texto = "Inicia-se a descrição deste perímetro no ponto de vértice "
+
+                #     v_inicio = lista_vertices[0]
+                #     n = v_inicio.utm_n
+                #     e = v_inicio.utm_e
+
+                #     texto += f"{v_inicio.de_vertice}, de coordenadas N {br_coord(n)}m e E {br_coord(e)}m; "
+
+                #     for i in range(len(lista_vertices) - 1):
+                #         v1 = lista_vertices[i]
+                #         v2 = lista_vertices[i + 1]
+
+                #         #azimute = calcular_azimute(
+                #         #    v1.latitude, v1.longitude,
+                #         #   v2.latitude, v2.longitude
+                #         #)
+                #         azimute = calcular_azimute_utm(
+                #             v1.utm_e, v1.utm_n,
+                #             v2.utm_e, v2.utm_n
+                #         )
+
+                #         distancia = br(v1.distancia)
+                #         n2 = v2.utm_n
+                #         e2 = v2.utm_e
+
+                #         confrontante = v1.confrontante.nome if v1.confrontante else v1.confrontante_texto
+                #         # CPF/CNPJ do confrontante (se existir)
+                #         confrontante_doc = ""
+                #         if v1.confrontante and v1.confrontante.cpf_cnpj:
+
+                #             doc_raw = v1.confrontante.cpf_cnpj
+                #             doc_numbers = "".join(filter(str.isdigit, doc_raw))
+
+                #             tipo = ""
+                #             if len(doc_numbers) == 11:
+                #                 tipo = "CPF"
+                #             elif len(doc_numbers) == 14:
+                #                 tipo = "CNPJ"
+
+                #             if tipo:
+                #                 confrontante_doc = f" {tipo}: {doc_raw}"
+                #             else:
+                #                 confrontante_doc = f" {doc_raw}"
+
+
+                #         texto += (
+                #             f"deste segue confrontando com {confrontante}, {confrontante_doc}, "
+                #             f"com os seguintes azimutes e distâncias: {azimute}, {distancia}m, "
+                #             f"até o vértice {v2.de_vertice}, de coordenadas "
+                #             f"N {br_coord(n2)}m e E {br_coord(e2)}m; "
+                #         )
+
+                lista_vertices = list(vertices)
+                total = len(lista_vertices)
+
+                if total < 3:
+                    elements.append(
+                        Paragraph(
+                            "Não há vértices suficientes para gerar a descrição perimétrica.",
+                            normal_style
+                        )
+                    )
+                else:
+                    texto = "Inicia-se a descrição deste perímetro no ponto de vértice "
+
+                    v_inicio = lista_vertices[0]
+                    texto += (
+                        f"{v_inicio.de_vertice}, de coordenadas "
+                        f"N {br_coord(v_inicio.utm_n)}m e "
+                        f"E {br_coord(v_inicio.utm_e)}m; "
+                    )
+
+                    for i in range(total):
+                        v1 = lista_vertices[i]
+                        v2 = lista_vertices[(i + 1) % total]
+
+                        azimute = calcular_azimute_utm(
+                            v1.utm_e, v1.utm_n,
+                            v2.utm_e, v2.utm_n
+                        )
+
+                        distancia = br(v1.distancia)
+
+                        confrontante = (
+                            v1.confrontante.nome
+                            if v1.confrontante
+                            else v1.confrontante_texto
+                        )
+
+                        confrontante_doc = ""
+                        if v1.confrontante and v1.confrontante.cpf_cnpj:
+                            doc_raw = v1.confrontante.cpf_cnpj
+                            doc_numbers = "".join(filter(str.isdigit, doc_raw))
+
+                            if len(doc_numbers) == 11:
+                                confrontante_doc = f" CPF: {doc_raw}"
+                            elif len(doc_numbers) == 14:
+                                confrontante_doc = f" CNPJ: {doc_raw}"
+
+                        texto += (
+                            f"deste segue confrontando com {confrontante},{confrontante_doc}, "
+                            f"com azimute de {azimute} e distância de {distancia}m, "
+                            f"até o vértice {v2.de_vertice}, de coordenadas "
+                            f"N {br_coord(v2.utm_n)}m e E {br_coord(v2.utm_e)}m; "
+                        )
+
+                    # 🔒 TEXTO FINAL — UMA ÚNICA VEZ
+                    texto += (
+                        "Todas as coordenadas aqui descritas estão georreferenciadas ao Sistema Geodésico Brasileiro "
+                        "e encontram-se representadas no Sistema UTM, referenciadas ao Meridiano Central 51º WGr, "
+                        "tendo como Datum o SIRGAS2000. Todos os azimutes e distâncias, área e perímetro foram "
+                        f"calculados no plano de projeção UTM. Encerrado o perímetro total de {projeto.perimetro} m "
+                        f"e área de {br(projeto.area)} m²."
+                    )
+
+                    elements.append(Paragraph(texto, descricao_style))
+                # else:
+                #    elements.append(Paragraph("Não há vértices suficientes para gerar a descrição perimétrica.", normal_style))
+
 
                 # Local e Data
                 # Obter a data atual
+                elements.append(Paragraph("<br/>", normal_style))
+                elements.append(Paragraph("<br/>", normal_style))
+
                 data_atual = datetime.now()
 
                 # Dicionário para traduzir os meses para o português
@@ -982,16 +1054,16 @@ def index(request):
                 # Assinatura do Responsável Técnico
                 elements.append(Paragraph("__________________________________________________", center_style))
                 elements.append(Paragraph("Everton Valdir Pinto Vieira", ParagraphStyle('BoldCenter', parent=center_style, fontName='Times-Bold', fontWeight='bold')))
-                elements.append(Paragraph("Resp. Técnico Técnico em Agrimensura", center_style))
-                elements.append(Paragraph("CFT 4025.441.619-57", center_style))
+                elements.append(Paragraph("Resp. Técnico em Agrimensura", center_style))
+                elements.append(Paragraph("CFT 02544161957", center_style))
                 elements.append(Paragraph("<br/>", center_style))
                 elements.append(Paragraph("<br/>", normal_style))
                 elements.append(Paragraph("<br/>", normal_style))
                 elements.append(Paragraph("<br/>", normal_style))
                 elements.append(Paragraph("<br/>", normal_style))
 
-                # Tabela de Assinaturas (Beneficiários e Confrontantes)
-                all_signatures = [(ben.nome, ben.cpf_cnpj, "Beneficiário") for ben in beneficiarios] + \
+                # Tabela de Assinaturas (Requerentes e Confrontantes)
+                all_signatures = [(ben.nome, ben.cpf_cnpj, "Requerente") for ben in beneficiarios] + \
                                 [(con.nome, con.cpf_cnpj, "Confrontante") for con in confrontantes]
                 if all_signatures:
                     signature_data = []
@@ -1036,7 +1108,7 @@ def index(request):
                     buffer.getvalue(),
                     content_type='application/pdf'
                 )
-                response['Content-Disposition'] = f'attachment; filename="memorial_descritivo_{projeto.nome}.pdf"'
+                response['Content-Disposition'] = f'attachment; filename="{projeto.nome} - Memorial.pdf"'
                 return response
             except Projeto.DoesNotExist:
                 messages.error(request, 'Projeto selecionado não existe.')
@@ -1056,5 +1128,3 @@ def index(request):
         'vertices': vertices,
         'projeto_selecionado': projeto_selecionado
     })
-
-

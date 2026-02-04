@@ -55,6 +55,15 @@
                             <label for="nome_projeto" class="form-label">Nome</label>
                             <input type="text" class="form-control" id="nome_projeto" name="nome_projeto" placeholder="Ex.: Fazenda Boa Vista" required>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Inscrição Imobiliária</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                name="inscricao_imobiliaria"
+                                placeholder="Ex: 01.02.003.0456.000"
+                            >
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="endereco_projeto" class="form-label">Endereço</label>
                             <input type="text" class="form-control" id="endereco_projeto" name="endereco_projeto" placeholder="Ex.: Rua Principal, s/n" required>
@@ -89,6 +98,7 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Nome:</strong> {{ projeto_selecionado.nome }}</p>
+                    <p><strong>Inscrição Imobiliária:</strong> {{ projeto_selecionado.inscricao_imobiliaria }}</p>
                     <p><strong>Endereço:</strong> {{ projeto_selecionado.endereco }}</p>
                     <p><strong>Área:</strong> {{ projeto_selecionado.area }} m²</p>
                     <p><strong>Perímetro:</strong> {{ projeto_selecionado.perimetro }} m</p>
@@ -269,33 +279,44 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                 </div>
                 <div class="card-body">
                     {% if confrontantes %}
-                        <ul class="list-group">
-                            {% for con in confrontantes %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ con.nome }} ({{ con.cpf_cnpj }}) - {{ con.direcao }} - 
-                                    {{ con.rua }}, {{ con.numero }}, {{ con.bairro }}, {{ con.cidade }}
-                                    <div>
-                                        <button type="button" class="btn btn-sm btn-warning me-2" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#editConfrontanteModal" 
-                                                data-id="{{ con.id }}" 
-                                                data-nome="{{ con.nome }}" 
-                                                data-cpf_cnpj="{{ con.cpf_cnpj }}" 
-                                                data-direcao="{{ con.direcao }}" 
-                                                data-rua="{{ con.rua }}" 
-                                                data-numero="{{ con.numero }}" 
-                                                data-bairro="{{ con.bairro }}" 
-                                                data-cidade="{{ con.cidade }}">Editar</button>
-                                        <form method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este confrontante?');">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="delete_confrontante">
-                                            <input type="hidden" name="confrontante_id" value="{{ con.id }}">
-                                            <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
-                                        </form>
-                                    </div>
-                                </li>
-                            {% endfor %}
-                        </ul>
+                        <form id="confrontantes-form" method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="toggle_confrontante_pdf">
+                            <ul class="list-group">
+                                {% for con in confrontantes %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <input type="checkbox" name="excluir_confrontantes" value="{{ con.id }}"
+                                                {% if con.excluir_do_pdf %}checked{% endif %}
+                                                onchange="document.getElementById('confrontantes-form').submit()">
+                                            <span class="ms-2">
+                                                {{ con.nome }} ({{ con.cpf_cnpj }}) - {{ con.direcao }} - 
+                                                {{ con.rua }}, {{ con.numero }}, {{ con.bairro }}, {{ con.cidade }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-warning me-2" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#editConfrontanteModal" 
+                                                    data-id="{{ con.id }}" 
+                                                    data-nome="{{ con.nome }}" 
+                                                    data-cpf_cnpj="{{ con.cpf_cnpj }}" 
+                                                    data-direcao="{{ con.direcao }}" 
+                                                    data-rua="{{ con.rua }}" 
+                                                    data-numero="{{ con.numero }}" 
+                                                    data-bairro="{{ con.bairro }}" 
+                                                    data-cidade="{{ con.cidade }}">Editar</button>
+                                            <form method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este confrontante?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_confrontante">
+                                                <input type="hidden" name="confrontante_id" value="{{ con.id }}">
+                                                <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </form>
                     {% else %}
                         <div class="alert alert-info">Nenhum confrontante cadastrado para este projeto.</div>
                     {% endif %}
@@ -327,10 +348,10 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                                     <label for="direcao_con" class="form-label">Direção</label>
                                     <select class="form-select" id="direcao_con" name="direcao_con" required>
                                         <option value="" disabled selected>Selecione a direção</option>
-                                        <option value="Norte">Norte</option>
-                                        <option value="Sul">Sul</option>
-                                        <option value="Leste">Leste</option>
-                                        <option value="Oeste">Oeste</option>
+                                        <option value="Frente">Frente</option>
+                                        <option value="Fundos">Fundos</option>
+                                        <option value="Direito">Direito</option>
+                                        <option value="Esquerdo">Esquerdo</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
@@ -381,10 +402,10 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                                     <label for="edit_direcao_con" class="form-label">Direção</label>
                                     <select class="form-select" id="edit_direcao_con" name="direcao_con" required>
                                         <option value="" disabled>Selecione a direção</option>
-                                        <option value="Norte">Norte</option>
-                                        <option value="Sul">Sul</option>
-                                        <option value="Leste">Leste</option>
-                                        <option value="Oeste">Oeste</option>
+                                        <option value="Frente">Frente</option>
+                                        <option value="Fundos">Fundos</option>
+                                        <option value="Direito">Direito</option>
+                                        <option value="Esquerdo">Esquerdo</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
@@ -429,7 +450,7 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                                 </div>
                                 <button type="submit" class="btn btn-primary">Importar Confrontantes</button>
                             </form>
-                            <p class="mt-3">Formato do TXT: Cada linha deve conter: Nome, CPF/CNPJ, Direção (Norte, Sul, Leste ou Oeste), Rua, Número, Bairro, Cidade, separados por tabulação.</p>
+                            <p class="mt-3">Formato do TXT: Cada linha deve conter: Nome, CPF/CNPJ, Direção (Frente, Fundos, Direito ou Esquerdo), Rua, Número, Bairro, Cidade, separados por tabulação.</p>
                             <p>Exemplo:</p>
                             <pre>
 Vilmar Ferreira Fontes    007.573.929-11    Norte    Rua do Mar    789    Jurerê    Florianópolis
@@ -454,8 +475,8 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                         <ul class="list-group">
                             {% for ver in vertices %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }}: 
-                                    {{ ver.longitude }}, {{ ver.latitude }}, {{ ver.distancia }}m, 
+                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }} : 
+                                    {{ ver.longitude }} | {{ ver.latitude }} | {{ ver.utm_n|floatformat:3 }} | {{ ver.utm_e|floatformat:3 }} | {{ ver.distancia }}m |  
                                     {% if ver.confrontante %}
                                         {{ ver.confrontante.nome }} ({{ ver.confrontante.cpf_cnpj }})
                                     {% else %}
@@ -470,7 +491,9 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                                 data-para_vertice="{{ ver.para_vertice }}" 
                                                 data-longitude="{{ ver.longitude }}" 
                                                 data-latitude="{{ ver.latitude }}" 
-                                                data-distancia="{{ ver.distancia }}" 
+                                                data-distancia="{{ ver.distancia|floatformat:2|default:'0.00' }}"
+                                                data-utmn="{{ ver.utm_n }}"
+                                                data-utme="{{ ver.utm_e }}"
                                                 data-confrontante_id="{% if ver.confrontante %}{{ ver.confrontante.id }}{% endif %}" 
                                                 data-confrontante_texto="{{ ver.confrontante_texto|default_if_none:'' }}">Editar</button>
                                         <form method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este vértice?');">
@@ -512,16 +535,27 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593\" O" required>
+                                    <input type="text" class="form-control coord-mask" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593" O" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418\" S" required>
+                                    <input type="text" class="form-control coord-mask" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418" S" required>
                                 </div>
+                                <!-- Adicionar -->
                                 <div class="mb-3">
                                     <label for="distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="number" step="0.01" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 3.22" required>
+                                    <input type="text" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 3.22" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control utm-norte" id="utm_n_ver" name="utm_n_ver" placeholder="Ex: 6956911,591">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control utm-este" id="utm_e_ver" name="utm_e_ver" placeholder="Ex: 755924,028">
+                                </div>
+
                                 <div class="mb-3">
                                     <label for="confrontante_ver" class="form-label">Confrontante</label>
                                     <select class="form-select" id="confrontante_ver" name="confrontante_ver">
@@ -565,16 +599,27 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="edit_longitude_ver" name="longitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_longitude_ver" name="longitude_ver" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="edit_latitude_ver" name="latitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_latitude_ver" name="latitude_ver" required>
                                 </div>
+                                <!-- Editar -->
                                 <div class="mb-3">
                                     <label for="edit_distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="number" step="0.01" class="form-control" id="edit_distancia_ver" name="distancia_ver" required>
+                                    <input type="text" class="form-control" id="edit_distancia_ver" name="distancia_ver" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="edit_utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control utm-norte" id="edit_utm_n_ver" name="utm_n_ver">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="edit_utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control utm-este" id="edit_utm_e_ver" name="utm_e_ver">
+                                </div>
+
                                 <div class="mb-3">
                                     <label for="edit_confrontante_ver" class="form-label">Confrontante</label>
                                     <select class="form-select" id="edit_confrontante_ver" name="confrontante_ver">
@@ -613,6 +658,8 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                     <input type="file" class="form-control" id="arquivo_vertices" name="arquivo_vertices" accept=".txt" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Importar Vértices</button>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importUtmModal">Importar UTM</button>
+
                             </form>
                             <p class="mt-3">Formato do TXT: Cada linha deve conter: De Vértice, Para Vértice, Longitude, Latitude, Distância, Nome do Confrontante, CPF/CNPJ do Confrontante (opcional), separados por tabulação.</p>
                             <p>Exemplo:</p>
@@ -625,17 +672,62 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                 </div>
             </div>
 
+            <div class="modal fade" id="importUtmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Importar Coordenadas UTM (Somente Completar)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="importar_utm">
+                                <input type="hidden" name="projeto_ver" value="{{ projeto_selecionado.id }}">
+
+                                <div class="mb-3">
+                                    <label class="form-label">Arquivo TXT (UTM)</label>
+                                    <input type="file" class="form-control" name="arquivo_utm" accept=".txt" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-success">Importar UTM</button>
+                            </form>
+
+                            <hr>
+
+                            <p><strong>Formato do arquivo:</strong></p>
+                            <pre>
+V01, 6956911.591, 755924.028
+V02, 6956911.607, 755916.946
+V03, 6956938.278, 755917.617
+V04, 6956938.013, 755924.694
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+  
+
+
             <!-- Botão para Gerar Memorial -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h2 class="h5 mb-0">Gerar Memorial Descritivo</h2>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" class="d-inline-block">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="gerar_memorial">
                         <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
                         <button type="submit" class="btn btn-success">Gerar e Baixar Memorial</button>
+                    </form>
+                    <!-- Novo botão para gerar o PDF -->
+                    <form method="POST" class="d-inline-block ms-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="gerar_memorial_pdf">
+                        <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
+                        <button type="submit" class="btn btn-primary">Gerar Memorial (PDF)</button>
                     </form>
                 </div>
             </div>
@@ -646,14 +738,60 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/inputmask.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Máscara para CPF/CNPJ
-            Inputmask({
-                mask: ['999.999.999-99', '99.999.999/9999-99'],
-                keepStatic: true,
-                placeholder: " "
-            }).mask(document.querySelectorAll('.cpf-cnpj'));
+    document.addEventListener('DOMContentLoaded', function () {
 
+        /* ================= CPF / CNPJ ================= */
+        Inputmask({
+            mask: ['999.999.999-99', '99.999.999/9999-99'],
+            keepStatic: true,
+            placeholder: " "
+        }).mask(document.querySelectorAll('.cpf-cnpj'));
+
+        /* ================= UTM NORTE ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 3,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            autoUnmask: true,
+            removeMaskOnSubmit: true,
+            //numericInput: true,
+            allowMinus: false,
+            placeholder: "0"
+        }).mask(document.querySelectorAll('.utm-norte'));
+
+        /* ================= UTM ESTE ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 3,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            autoUnmask: true,
+            removeMaskOnSubmit: true,
+            //numericInput: true,
+            allowMinus: false,
+            placeholder: "0"
+        }).mask(document.querySelectorAll('.utm-este'));
+
+        /* ================= DISTÂNCIA ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 2,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            allowMinus: false
+        }).mask(document.querySelectorAll('#distancia_ver, #edit_distancia_ver'));
+
+            
             // Preencher o modal de edição de beneficiário
             const editBeneficiarioModal = document.getElementById('editBeneficiarioModal');
             editBeneficiarioModal.addEventListener('show.bs.modal', function (event) {
@@ -710,6 +848,8 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                 const longitude = button.getAttribute('data-longitude');
                 const latitude = button.getAttribute('data-latitude');
                 const distancia = button.getAttribute('data-distancia');
+                const utm_n = button.getAttribute('data-utmn');
+                const utm_e = button.getAttribute('data-utme');
                 const confrontante_id = button.getAttribute('data-confrontante_id');
                 const confrontante_texto = button.getAttribute('data-confrontante_texto');
 
@@ -720,10 +860,91 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                 modal.querySelector('#edit_longitude_ver').value = longitude;
                 modal.querySelector('#edit_latitude_ver').value = latitude;
                 modal.querySelector('#edit_distancia_ver').value = distancia;
+                if (utm_n) {
+                    modal.querySelector('#edit_utm_n_ver').value =
+                        parseFloat(utm_n).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3
+                        });
+                }
+
+                if (utm_e) {
+                    modal.querySelector('#edit_utm_e_ver').value =
+                        parseFloat(utm_e).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3
+                        });
+                }
                 modal.querySelector('#edit_confrontante_ver').value = confrontante_id || '';
                 modal.querySelector('#edit_confrontante_texto').value = confrontante_texto;
             });
         });
     </script>
+
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function aplicarMascaraCoordenada(input) {
+
+            input.addEventListener("input", function () {
+                let v = input.value.toUpperCase();
+
+                // Remove tudo que não for número ou letra
+                v = v.replace(/[^0-9NSO]/g, "");
+
+                // Detecta hemisfério
+                let hemisferio = "";
+                if (v.endsWith("N") || v.endsWith("S") || v.endsWith("O")) {
+                    hemisferio = " " + v.slice(-1);
+                    v = v.slice(0, -1);
+                }
+
+                // Aplica máscara progressiva
+                if (v.length > 2)
+                    v = v.slice(0, 2) + "°" + v.slice(2);
+
+                if (v.length > 5)
+                    v = v.slice(0, 5) + "'" + v.slice(5);
+
+                if (v.length > 8)
+                    v = v.slice(0, 8) + "." + v.slice(8);
+
+                if (v.length > 12)
+                    v = v.slice(0, 12) + "\"" + hemisferio;
+
+                input.value = v;
+            });
+
+        }
+
+        document.querySelectorAll(".coord-mask").forEach(aplicarMascaraCoordenada);
+    });
+    
+    </script>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function limparUTM(valor) {
+            if (!valor) return "";
+            return valor.replace(/\./g, "").replace(",", ".");
+        }
+
+        document.querySelectorAll("form").forEach(form => {
+            form.addEventListener("submit", function () {
+
+                form.querySelectorAll(".utm-norte, .utm-este").forEach(input => {
+                    input.value = limparUTM(input.value);
+                });
+
+            });
+        });
+
+    });
+    </script>
+
+
+    
 </body>
 </html>

@@ -3,6 +3,13 @@ from django.core.validators import RegexValidator
 
 class Projeto(models.Model):
     nome = models.CharField(max_length=200)
+    inscricao_imobiliaria = models.CharField(
+        "Inscrição Imobiliária",
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
     endereco = models.TextField()
     area = models.FloatField(help_text="Área em metros quadrados")
     perimetro = models.FloatField(help_text="Perímetro em metros")
@@ -81,6 +88,8 @@ class Vertice(models.Model):
     longitude = models.CharField(max_length=20, help_text="Ex.: 48°29'05.593\" O")
     latitude = models.CharField(max_length=20, help_text="Ex.: 27°27'16.418\" S")
     distancia = models.FloatField(help_text="Distância em metros")
+    utm_n = models.FloatField(null=True, blank=True)
+    utm_e = models.FloatField(null=True, blank=True)
     confrontante = models.ForeignKey(Confrontante, on_delete=models.SET_NULL, null=True, blank=True, help_text="Confrontante associado ou vazio")
     confrontante_texto = models.CharField(max_length=200, blank=True, help_text="Nome do confrontante se não for um registro, ex.: Rua do Lamim, APP")
 

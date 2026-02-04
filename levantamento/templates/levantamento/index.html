@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Memorial Descritivo</title>
+    <title>Gerador de Levantamentos Topográficos</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <div class="container my-5">
-        <h1 class="text-center mb-4">Gerador de Memorial Descritivo</h1>
+        <h1 class="text-center mb-4">Gerador de Levantamentos Topográficos</h1>
 
         <!-- Mensagens -->
         {% if messages %}
@@ -32,80 +32,60 @@
                 <form method="POST" class="mb-4">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="selecionar_projeto">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="projeto_filtro" class="form-label">Projeto</label>
-                            <div class="d-flex align-items-center">
-                                <select class="form-select" id="projeto_filtro" name="projeto_filtro" onchange="this.form.submit()">
-                                    <option value="" disabled {% if not projeto_selecionado %}selected{% endif %}>Selecione um projeto</option>
+                    <div class="row align-items-end">
+                        
+                        <div class="row align-items-end">
+                            <!-- ESQUERDA — CAMPO DE PESQUISA -->
+                            <div class="col-md-6 mb-3">
+                                <label for="pesquisa" class="form-label">
+                                    Pesquisar (Nome, CPF ou Inscrição Imobiliária)
+                                </label>
+
+                                <div class="position-relative">
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="pesquisa"
+                                        autocomplete="off"
+                                        placeholder="Digite nome, CPF ou inscrição"
+                                    >
+
+                                    <ul id="lista-sugestoes"
+                                        class="list-group position-absolute w-100 shadow-sm"
+                                        style="z-index: 1000; display: none;">
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- DIREITA — SELECT DE PROJETO -->
+                            <div class="col-md-6 mb-3">
+                                <label for="projeto_filtro" class="form-label">
+                                    Projeto
+                                </label>
+
+                                <select
+                                    class="form-select"
+                                    id="projeto_filtro"
+                                    name="projeto_filtro"
+                                    onchange="this.form.submit()"
+                                >
+                                    <option value="" disabled
+                                        {% if not projeto_selecionado %}selected{% endif %}>
+                                        Selecione um projeto
+                                    </option>
+
                                     {% for projeto in projetos %}
-                                        <option value="{{ projeto.id }}" {% if projeto_selecionado.id == projeto.id %}selected{% endif %}>{{ projeto.nome }}</option>
+                                        <option value="{{ projeto.id }}"
+                                            {% if projeto_selecionado.id == projeto.id %}selected{% endif %}>
+                                            {{ projeto.nome }}
+                                        </option>
                                     {% endfor %}
                                 </select>
-                                {% if projeto_selecionado %}
-                                    <button type="button" class="btn btn-sm btn-warning ms-2" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#editProjetoModal" 
-                                            data-id="{{ projeto_selecionado.id }}" 
-                                            data-nome="{{ projeto_selecionado.nome }}" 
-                                            data-endereco="{{ projeto_selecionado.endereco }}" 
-                                            data-area="{{ projeto_selecionado.area|floatformat:2 }}" 
-                                            data-perimetro="{{ projeto_selecionado.perimetro|floatformat:2 }}" 
-                                            data-epoca_medicao="{{ projeto_selecionado.epoca_medicao }}" 
-                                            data-instrumento="{{ projeto_selecionado.instrumento }}">Editar Projeto</button>
-                                {% endif %}
                             </div>
                         </div>
+
                     </div>
                 </form>
-
-                <!-- Modal para Editar Projeto -->
-                <div class="modal fade" id="editProjetoModal" tabindex="-1" aria-labelledby="editProjetoModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editProjetoModalLabel">Editar Projeto</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <form method="POST">
-                                <div class="modal-body">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="edit_projeto">
-                                    <input type="hidden" name="projeto_id" id="edit_projeto_id">
-                                    <div class="mb-3">
-                                        <label for="edit_nome_projeto" class="form-label">Nome do Projeto</label>
-                                        <input type="text" class="form-control" id="edit_nome_projeto" name="nome_projeto" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_endereco_projeto" class="form-label">Endereço</label>
-                                        <input type="text" class="form-control" id="edit_endereco_projeto" name="endereco_projeto" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_area_projeto" class="form-label">Área (m²)</label>
-                                        <input type="text" class="form-control" id="edit_area_projeto" name="area_projeto" required pattern="^\d+(,\d{1,2})?$" title="Digite um número no formato 1000,50 (use vírgula como separador decimal)">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_perimetro_projeto" class="form-label">Perímetro (m)</label>
-                                        <input type="text" class="form-control" id="edit_perimetro_projeto" name="perimetro_projeto" required pattern="^\d+(,\d{1,2})?$" title="Digite um número no formato 150,75 (use vírgula como separador decimal)">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_epoca_medicao" class="form-label">Época da Medição</label>
-                                        <input type="text" class="form-control" id="edit_epoca_medicao" name="epoca_medicao" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_instrumento" class="form-label">Instrumento Utilizado</label>
-                                        <input type="text" class="form-control" id="edit_instrumento" name="instrumento" required>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
 
                 <!-- Formulário para Adicionar Novo Projeto -->
                 <h3 class="h6 mb-3">Adicionar Novo Projeto</h3>
@@ -117,17 +97,26 @@
                             <label for="nome_projeto" class="form-label">Nome</label>
                             <input type="text" class="form-control" id="nome_projeto" name="nome_projeto" placeholder="Ex.: Fazenda Boa Vista" required>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Inscrição Imobiliária</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                name="inscricao_imobiliaria"
+                                placeholder="Ex: 01.02.003.0456.000"
+                            >
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="endereco_projeto" class="form-label">Endereço</label>
                             <input type="text" class="form-control" id="endereco_projeto" name="endereco_projeto" placeholder="Ex.: Rua Principal, s/n" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="area_projeto" class="form-label">Área (m²)</label>
-                            <input type="text" class="form-control" id="area_projeto" name="area_projeto" placeholder="Ex.: 1000,50" required pattern="^\d+,\d{1,2}$" title="Digite um número no formato 1000,50 (use vírgula como separador decimal)">
+                            <input type="number" step="0.01" class="form-control" id="area_projeto" name="area_projeto" placeholder="Ex.: 1000.50" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="perimetro_projeto" class="form-label">Perímetro (m)</label>
-                            <input type="text" class="form-control" id="perimetro_projeto" name="perimetro_projeto" placeholder="Ex.: 150.75" required pattern="^\d+,\d{1,2}$" title="Digite um número no formato 150,75 (use vírgula como separador decimal)">
+                            <input type="number" step="0.01" class="form-control" id="perimetro_projeto" name="perimetro_projeto" placeholder="Ex.: 150.75" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="epoca_medicao" class="form-label">Época da Medição</label>
@@ -147,13 +136,14 @@
         {% if projeto_selecionado %}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h2 class="h5 mb-0">Projeto Selecionado: {{ projeto_selecionado.nome }}</h2>
+                    <h2 class="h5 mb-0">Informações do Projeto: {{ projeto_selecionado.nome }}</h2>
                 </div>
                 <div class="card-body">
                     <p><strong>Nome:</strong> {{ projeto_selecionado.nome }}</p>
+                    <p><strong>Inscrição Imobiliária:</strong> {{ projeto_selecionado.inscricao_imobiliaria }}</p>
                     <p><strong>Endereço:</strong> {{ projeto_selecionado.endereco }}</p>
-                    <p><strong>Área:</strong> {{ projeto_selecionado.area|floatformat:2 }} m²</p>
-                    <p><strong>Perímetro:</strong> {{ projeto_selecionado.perimetro|floatformat:2 }} m</p>
+                    <p><strong>Área:</strong> {{ projeto_selecionado.area }} m²</p>
+                    <p><strong>Perímetro:</strong> {{ projeto_selecionado.perimetro }} m</p>
                     <p><strong>Época da Medição:</strong> {{ projeto_selecionado.epoca_medicao }}</p>
                     <p><strong>Instrumento Utilizado:</strong> {{ projeto_selecionado.instrumento }}</p>
                 </div>
@@ -221,7 +211,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="cpf_cnpj_ben" class="form-label">CPF ou CNPJ</label>
-                                    <input type="text" class="form-control cpf-cnpj" id="cpf_cnpj_ben" name="cpf_cnpj_ben" placeholder="Ex.: 123.456.789-00 ou 12.345.678/0001-99" required>
+                                    <input type="text" class="form-control cpf-cnpj-input" id="cpf_cnpj_ben" name="cpf_cnpj_ben" placeholder="Ex.: 123.456.789-00 ou 12.345.678/0001-99" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="rua_ben" class="form-label">Rua</label>
@@ -265,7 +255,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_cpf_cnpj_ben" class="form-label">CPF ou CNPJ</label>
-                                    <input type="text" class="form-control cpf-cnpj" id="edit_cpf_cnpj_ben" name="cpf_cnpj_ben" required>
+                                    <input type="text" class="form-control cpf-cnpj-input" id="edit_cpf_cnpj_ben" name="cpf_cnpj_ben" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_rua_ben" class="form-label">Rua</label>
@@ -394,7 +384,7 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                                 </div>
                                 <div class="mb-3">
                                     <label for="cpf_cnpj_con" class="form-label">CPF ou CNPJ</label>
-                                    <input type="text" class="form-control cpf-cnpj" id="cpf_cnpj_con" name="cpf_cnpj_con" placeholder="Ex.: 123.456.789-00 ou 12.345.678/0001-99" required>
+                                    <input type="text" class="form-control cpf-cnpj-input" id="cpf_cnpj_con" name="cpf_cnpj_con" placeholder="Ex.: 123.456.789-00 ou 12.345.678/0001-99" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="direcao_con" class="form-label">Direção</label>
@@ -448,7 +438,7 @@ Ana Pereira    987.654.321-00    Rua da Lua    456    Jurerê    Florianópolis
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_cpf_cnpj_con" class="form-label">CPF ou CNPJ</label>
-                                    <input type="text" class="form-control cpf-cnpj" id="edit_cpf_cnpj_con" name="cpf_cnpj_con" required>
+                                    <input type="text" class="form-control cpf-cnpj-input" id="edit_cpf_cnpj_con" name="cpf_cnpj_con" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_direcao_con" class="form-label">Direção</label>
@@ -527,8 +517,8 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                         <ul class="list-group">
                             {% for ver in vertices %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }}: 
-                                    {{ ver.longitude }}, {{ ver.latitude }}, {{ ver.distancia|floatformat:2 }}m, 
+                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }} : 
+                                    {{ ver.longitude }} | {{ ver.latitude }} | {{ ver.utm_n|floatformat:3 }} | {{ ver.utm_e|floatformat:3 }} | {{ ver.distancia }}m |  
                                     {% if ver.confrontante %}
                                         {{ ver.confrontante.nome }} ({{ ver.confrontante.cpf_cnpj }})
                                     {% else %}
@@ -543,7 +533,9 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                                 data-para_vertice="{{ ver.para_vertice }}" 
                                                 data-longitude="{{ ver.longitude }}" 
                                                 data-latitude="{{ ver.latitude }}" 
-                                                data-distancia="{{ ver.distancia|floatformat:2 }}" 
+                                                data-distancia="{{ ver.distancia|floatformat:2|default:'0.00' }}"
+                                                data-utmn="{{ ver.utm_n }}"
+                                                data-utme="{{ ver.utm_e }}"
                                                 data-confrontante_id="{% if ver.confrontante %}{{ ver.confrontante.id }}{% endif %}" 
                                                 data-confrontante_texto="{{ ver.confrontante_texto|default_if_none:'' }}">Editar</button>
                                         <form method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este vértice?');">
@@ -571,7 +563,7 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <form method="POST">
+                            <form method="POST" id="addVerticeForm">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="add_vertice">
                                 <input type="hidden" name="projeto_ver" value="{{ projeto_selecionado.id }}">
@@ -585,15 +577,25 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593\" O" required>
+                                    <input type="text" class="form-control coord-mask" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593&quot; O" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418\" S" required>
+                                    <input type="text" class="form-control coord-mask" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418&quot; S" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="number" step="0.01" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 3.22" required>
+                                    <input type="text" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 80,29" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control" id="utm_n_ver" name="utm_n_ver" 
+                                           placeholder="Ex: 6.936.542,588">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control" id="utm_e_ver" name="utm_e_ver" 
+                                           placeholder="Ex: 745.565,774">
                                 </div>
                                 <div class="mb-3">
                                     <label for="confrontante_ver" class="form-label">Confrontante</label>
@@ -624,7 +626,7 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <form method="POST">
+                            <form method="POST" id="editVerticeForm">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="edit_vertice">
                                 <input type="hidden" name="vertice_id" id="edit_vertice_id">
@@ -638,15 +640,23 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="edit_longitude_ver" name="longitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_longitude_ver" name="longitude_ver" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="edit_latitude_ver" name="latitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_latitude_ver" name="latitude_ver" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="text" class="form-control" id="edit_distancia_ver" name="distancia_ver" required pattern="^\d+(,\d{1,2}?$" title="Digite um número no formato 12,34 (use vírgula como separador decimal)">
+                                    <input type="text" class="form-control" id="edit_distancia_ver" name="distancia_ver" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control" id="edit_utm_n_ver" name="utm_n_ver">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="edit_utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control" id="edit_utm_e_ver" name="utm_e_ver">
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_confrontante_ver" class="form-label">Confrontante</label>
@@ -685,7 +695,9 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                     <label for="arquivo_vertices" class="form-label">Arquivo TXT</label>
                                     <input type="file" class="form-control" id="arquivo_vertices" name="arquivo_vertices" accept=".txt" required>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Importar Vértices</button>
+                                <button type="submit" class="btn btn-primary">Vértices</button>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importUtmModal">UTM</button>
+                                <button type="button" class="btn btn-primary" data-bs-toggle= "modal" data-bs-target="#importCompletoModal">Dados Completos</button>
                             </form>
                             <p class="mt-3">Formato do TXT: Cada linha deve conter: De Vértice, Para Vértice, Longitude, Latitude, Distância, Nome do Confrontante, CPF/CNPJ do Confrontante (opcional), separados por tabulação.</p>
                             <p>Exemplo:</p>
@@ -697,6 +709,97 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                     </div>
                 </div>
             </div>
+
+            <!-- Modal para Importar UTM's -->
+            <div class="modal fade" id="importUtmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Importar Coordenadas UTM (Somente Completar)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="importar_utm">
+                                <input type="hidden" name="projeto_ver" value="{{ projeto_selecionado.id }}">
+                                <div class="mb-3">
+                                    <label class="form-label">Arquivo TXT (UTM)</label>
+                                    <input type="file" class="form-control" name="arquivo_utm" accept=".txt" required>
+                                </div>
+                                <button type="submit" class="btn btn-success">Importar UTM</button>
+
+                            </form>
+                            <hr>
+                            <p><strong>Formato do arquivo:</strong></p>
+                            <pre>
+V01, 6956911.591, 755924.028
+V02, 6956911.607, 755916.946
+V03, 6956938.278, 755917.617
+V04, 6956938.013, 755924.694
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal para Importar Vértices Completos -->
+            <div class="modal fade" id="importCompletoModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Importar Vértices Completos</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <form method="post"
+                                enctype="multipart/form-data"
+                                action="{% url 'importar_dados_completos' projeto_selecionado.id %}">
+                                {% csrf_token %}
+
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        Arquivo TXT (UTM + Latitude/Longitude)
+                                    </label>
+                                    <input type="file"
+                                        name="arquivo_completo"
+                                        class="form-control"
+                                        accept=".txt"
+                                        required>
+                                </div>
+
+                                <button type="submit" class="btn btn-success">
+                                    Importar dados completos
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h3 class="h5 mb-0">Importar do AutoCAD (LISP)</h3>
+                </div>
+                <div class="card-body">
+                    <form action="{% url 'importar_vertices_lisp' %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="projeto_id" value="{{ projeto_selecionado.id }}">
+                        
+                        <div class="input-group">
+                            <input type="file" name="arquivo_lisp" class="form-control" accept=".txt" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-file-earmark-arrow-up"></i> Carregar Vértices
+                            </button>
+                        </div>
+                        <small class="text-muted">Selecione o arquivo .txt gerado pelo comando 'RelatorioTopografico' no AutoCAD.</small>
+                    </form>
+                </div>
+            </div> -->
+
 
             <!-- Botão para Gerar Memorial -->
             <div class="card mb-4">
@@ -710,15 +813,11 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                         <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
                         <button type="submit" class="btn btn-success">Gerar e Baixar Memorial</button>
                     </form>
-                    <!-- Formulário para gerar o PDF com opção de anonimização -->
+                    <!-- Novo botão para gerar o PDF -->
                     <form method="POST" class="d-inline-block ms-2">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="gerar_memorial_pdf">
                         <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
-                        <div class="form-check form-switch mb-2">
-                            <input type="checkbox" class="form-check-input" name="anonimizar_cpf_cnpj" id="anonimizar_cpf_cnpj" value="1">
-                            <label class="form-check-label" for="anonimizar_cpf_cnpj">Anonimizar CPF/CNPJ (substituir por XXX.XXX.XXX-XX)</label>
-                        </div>
                         <button type="submit" class="btn btn-primary">Gerar Memorial (PDF)</button>
                     </form>
                 </div>
@@ -726,115 +825,455 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
         {% endif %}
     </div>
 
-    <!-- Bootstrap JS e Inputmask -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/inputmask.min.js"></script>
+    
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Máscara para CPF/CNPJ
-            Inputmask({
-                mask: ['999.999.999-99', '99.999.999/9999-99'],
-                keepStatic: true,
-                placeholder: " "
-            }).mask(document.querySelectorAll('.cpf-cnpj'));
+    document.addEventListener('DOMContentLoaded', function () {
+        
+        
+        /* ================= FUNÇÃO PARA PROCESSAR NÚMEROS (CORRIGIDA) ================= */
+        function parseNumberBr(value) {
+            if (value === null || value === undefined || value === '' || value === 'None') return null;
+            
+            let strValue = value.toString().trim();
+            
+            // Se contém vírgula, tratamos como formato BR (Ponto é milhar, vírgula é decimal)
+            if (strValue.includes(',')) {
+                strValue = strValue.replace(/\./g, '').replace(',', '.');
+            } 
+            // Se NÃO tem vírgula mas tem ponto, verificamos se o ponto é decimal
+            // (Padrão internacional/CAD: 80.29)
+            else {
+                // Se houver mais de um ponto, é milhar (ex: 1.000.000)
+                if ((strValue.match(/\./g) || []).length > 1) {
+                    strValue = strValue.replace(/\./g, '');
+                }
+                // Se houver apenas um ponto, deixamos ele como decimal (comportamento CAD)
+            }
+            
+            let number = parseFloat(strValue);
+            return isNaN(number) ? null : number;
+        }
+        
+        /* ================= FUNÇÃO PARA FORMATAR VALORES PARA BACKEND ================= */
+        
+        function formatForBackend(value, type) {
+            let number = parseNumberBr(value);
+            if (number === null) return '';
+            
+            switch(type) {
+                case 'distancia':
+                    // Distância: 2 casas decimais
+                    return number.toFixed(2);
+                case 'utm':
+                    // UTM: 3 casas decimais
+                    return number.toFixed(3);
+                default:
+                    return number.toString();
+            }
+        }
+        
+        /* ================= FUNÇÃO PARA FORMATAR EXIBIÇÃO (CORRIGIDA) ================= */
+        function formatForDisplay(value, type) {
+            let number = parseNumberBr(value);
+            if (number === null) return '';
 
-            // Preencher o modal de edição de beneficiário
-            const editBeneficiarioModal = document.getElementById('editBeneficiarioModal');
-            editBeneficiarioModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const id = button.getAttribute('data-id');
-                const nome = button.getAttribute('data-nome');
-                const cpf_cnpj = button.getAttribute('data-cpf_cnpj');
-                const rua = button.getAttribute('data-rua');
-                const numero = button.getAttribute('data-numero');
-                const bairro = button.getAttribute('data-bairro');
-                const cidade = button.getAttribute('data-cidade');
-
-                const modal = this;
-                modal.querySelector('#edit_beneficiario_id').value = id;
-                modal.querySelector('#edit_nome_ben').value = nome;
-                modal.querySelector('#edit_cpf_cnpj_ben').value = cpf_cnpj;
-                modal.querySelector('#edit_rua_ben').value = rua;
-                modal.querySelector('#edit_numero_ben').value = numero;
-                modal.querySelector('#edit_bairro_ben').value = bairro;
-                modal.querySelector('#edit_cidade_ben').value = cidade;
+            // Usamos o Intl.NumberFormat para evitar erros de string manual
+            const formatter = new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: (type === 'distancia') ? 2 : 3,
+                maximumFractionDigits: (type === 'distancia') ? 2 : 3
             });
 
-            // Preencher o modal de edição de confrontante
-            const editConfrontanteModal = document.getElementById('editConfrontanteModal');
-            editConfrontanteModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const id = button.getAttribute('data-id');
-                const nome = button.getAttribute('data-nome');
-                const cpf_cnpj = button.getAttribute('data-cpf_cnpj');
-                const direcao = button.getAttribute('data-direcao');
-                const rua = button.getAttribute('data-rua');
-                const numero = button.getAttribute('data-numero');
-                const bairro = button.getAttribute('data-bairro');
-                const cidade = button.getAttribute('data-cidade');
-
-                const modal = this;
-                modal.querySelector('#edit_confrontante_id').value = id;
-                modal.querySelector('#edit_nome_con').value = nome;
-                modal.querySelector('#edit_cpf_cnpj_con').value = cpf_cnpj;
-                modal.querySelector('#edit_direcao_con').value = direcao;
-                modal.querySelector('#edit_rua_con').value = rua;
-                modal.querySelector('#edit_numero_con').value = numero;
-                modal.querySelector('#edit_bairro_con').value = bairro;
-                modal.querySelector('#edit_cidade_con').value = cidade;
-            });
-
-            // Preencher o modal de edição de vértice
-            const editVerticeModal = document.getElementById('editVerticeModal');
+            return formatter.format(number);
+        }
+        
+        /* ================= PROCESSAMENTO DOS FORMULÁRIOS ================= */
+        
+        function setupFormProcessing() {
+            // Formulário de adição de vértice
+            const addForm = document.getElementById('addVerticeForm');
+            if (addForm) {
+                addForm.addEventListener('submit', function(e) {
+                    console.log('Processando formulário de adição...');
+                    
+                    // Processa distância
+                    const distanciaInput = this.querySelector('#distancia_ver');
+                    if (distanciaInput && distanciaInput.value) {
+                        const original = distanciaInput.value;
+                        const processed = formatForBackend(original, 'distancia');
+                        console.log(`Distância: "${original}" -> "${processed}"`);
+                        distanciaInput.value = processed;
+                    }
+                    
+                    // Processa UTM Norte
+                    const utmNInput = this.querySelector('#utm_n_ver');
+                    if (utmNInput && utmNInput.value) {
+                        const original = utmNInput.value;
+                        const processed = formatForBackend(original, 'utm');
+                        console.log(`UTM N: "${original}" -> "${processed}"`);
+                        utmNInput.value = processed;
+                    }
+                    
+                    // Processa UTM Este
+                    const utmEInput = this.querySelector('#utm_e_ver');
+                    if (utmEInput && utmEInput.value) {
+                        const original = utmEInput.value;
+                        const processed = formatForBackend(original, 'utm');
+                        console.log(`UTM E: "${original}" -> "${processed}"`);
+                        utmEInput.value = processed;
+                    }
+                });
+            }
+            
+            // Formulário de edição de vértice
+            const editForm = document.getElementById('editVerticeForm');
+            if (editForm) {
+                editForm.addEventListener('submit', function(e) {
+                    console.log('Processando formulário de edição...');
+                    
+                    // Processa distância
+                    const distanciaInput = this.querySelector('#edit_distancia_ver');
+                    if (distanciaInput && distanciaInput.value) {
+                        const original = distanciaInput.value;
+                        const processed = formatForBackend(original, 'distancia');
+                        console.log(`Distância: "${original}" -> "${processed}"`);
+                        distanciaInput.value = processed;
+                    }
+                    
+                    // Processa UTM Norte
+                    const utmNInput = this.querySelector('#edit_utm_n_ver');
+                    if (utmNInput && utmNInput.value) {
+                        const original = utmNInput.value;
+                        const processed = formatForBackend(original, 'utm');
+                        console.log(`UTM N: "${original}" -> "${processed}"`);
+                        utmNInput.value = processed;
+                    }
+                    
+                    // Processa UTM Este
+                    const utmEInput = this.querySelector('#edit_utm_e_ver');
+                    if (utmEInput && utmEInput.value) {
+                        const original = utmEInput.value;
+                        const processed = formatForBackend(original, 'utm');
+                        console.log(`UTM E: "${original}" -> "${processed}"`);
+                        utmEInput.value = processed;
+                    }
+                });
+            }
+        }
+        
+        /* ================= PREENCHIMENTO DOS MODAIS ================= */
+        
+        // Modal de edição de vértice
+        const editVerticeModal = document.getElementById('editVerticeModal');
+        if (editVerticeModal) {
             editVerticeModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
+                
+                // Coleta dados dos atributos
                 const id = button.getAttribute('data-id');
                 const de_vertice = button.getAttribute('data-de_vertice');
                 const para_vertice = button.getAttribute('data-para_vertice');
                 const longitude = button.getAttribute('data-longitude');
                 const latitude = button.getAttribute('data-latitude');
                 const distancia = button.getAttribute('data-distancia');
+                const utm_n = button.getAttribute('data-utmn');
+                const utm_e = button.getAttribute('data-utme');
                 const confrontante_id = button.getAttribute('data-confrontante_id');
                 const confrontante_texto = button.getAttribute('data-confrontante_texto');
-
-                const modal = this;
-                modal.querySelector('#edit_vertice_id').value = id;
-                modal.querySelector('#edit_de_vertice').value = de_vertice;
-                modal.querySelector('#edit_para_vertice').value = para_vertice;
-                modal.querySelector('#edit_longitude_ver').value = longitude;
-                modal.querySelector('#edit_latitude_ver').value = latitude;
-                // Garantir que a distância seja formatada corretamente
-                let distanciaFormatada = distancia.replace('.', ','); // Substituir ponto por vírgula, se houver
-                if (!distanciaFormatada.match(/^\d+(,\d{1,2})?$/)) {
-                distanciaFormatada = distancia; // Manter o valor original se já estiver correto
+                
+                // Preenche campos básicos
+                this.querySelector('#edit_vertice_id').value = id;
+                this.querySelector('#edit_de_vertice').value = de_vertice || '';
+                this.querySelector('#edit_para_vertice').value = para_vertice || '';
+                this.querySelector('#edit_longitude_ver').value = longitude || '';
+                this.querySelector('#edit_latitude_ver').value = latitude || '';
+                
+                // Formata e preenche distância
+                if (distancia) {
+                    const distanciaFormatada = formatForDisplay(distancia, 'distancia');
+                    this.querySelector('#edit_distancia_ver').value = distanciaFormatada;
                 }
-                modal.querySelector('#edit_distancia_ver').value = distancia;
-                modal.querySelector('#edit_confrontante_ver').value = confrontante_id || '';
-                modal.querySelector('#edit_confrontante_texto').value = confrontante_texto;
+                
+                // Formata e preenche UTM Norte
+                if (utm_n && utm_n !== 'None' && utm_n !== 'null') {
+                    const utmNFormatada = formatForDisplay(utm_n, 'utm_norte');
+                    this.querySelector('#edit_utm_n_ver').value = utmNFormatada;
+                }
+                
+                // Formata e preenche UTM Este
+                if (utm_e && utm_e !== 'None' && utm_e !== 'null') {
+                    const utmEFormatada = formatForDisplay(utm_e, 'utm_este');
+                    this.querySelector('#edit_utm_e_ver').value = utmEFormatada;
+                }
+                
+                // Preenche confrontante
+                this.querySelector('#edit_confrontante_ver').value = confrontante_id || '';
+                this.querySelector('#edit_confrontante_texto').value = confrontante_texto || '';
+                
+                // Log para debug
+                console.log('Modal carregado com valores:');
+                console.log('Distância:', distancia, '->', formatForDisplay(distancia, 'distancia'));
+                console.log('UTM N:', utm_n, '->', formatForDisplay(utm_n, 'utm_norte'));
+                console.log('UTM E:', utm_e, '->', formatForDisplay(utm_e, 'utm_este'));
             });
-
-            // Preencher o modal de edição de projeto
-            const editProjetoModal = document.getElementById('editProjetoModal');
-            editProjetoModal.addEventListener('show.bs.modal', function (event) {
+        }
+        
+        // Modal de edição de beneficiário
+        const editBeneficiarioModal = document.getElementById('editBeneficiarioModal');
+        if (editBeneficiarioModal) {
+            editBeneficiarioModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
-                const id = button.getAttribute('data-id');
-                const nome = button.getAttribute('data-nome');
-                const endereco = button.getAttribute('data-endereco');
-                const area = button.getAttribute('data-area');
-                const perimetro = button.getAttribute('data-perimetro');
-                const epoca_medicao = button.getAttribute('data-epoca_medicao');
-                const instrumento = button.getAttribute('data-instrumento');
+                
+                this.querySelector('#edit_beneficiario_id').value = button.getAttribute('data-id');
+                this.querySelector('#edit_nome_ben').value = button.getAttribute('data-nome');
+                this.querySelector('#edit_cpf_cnpj_ben').value = button.getAttribute('data-cpf_cnpj');
+                this.querySelector('#edit_rua_ben').value = button.getAttribute('data-rua');
+                this.querySelector('#edit_numero_ben').value = button.getAttribute('data-numero');
+                this.querySelector('#edit_bairro_ben').value = button.getAttribute('data-bairro');
+                this.querySelector('#edit_cidade_ben').value = button.getAttribute('data-cidade');
+            });
+        }
+        
+        // Modal de edição de confrontante
+        const editConfrontanteModal = document.getElementById('editConfrontanteModal');
+        if (editConfrontanteModal) {
+            editConfrontanteModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                
+                this.querySelector('#edit_confrontante_id').value = button.getAttribute('data-id');
+                this.querySelector('#edit_nome_con').value = button.getAttribute('data-nome');
+                this.querySelector('#edit_cpf_cnpj_con').value = button.getAttribute('data-cpf_cnpj');
+                this.querySelector('#edit_direcao_con').value = button.getAttribute('data-direcao');
+                this.querySelector('#edit_rua_con').value = button.getAttribute('data-rua');
+                this.querySelector('#edit_numero_con').value = button.getAttribute('data-numero');
+                this.querySelector('#edit_bairro_con').value = button.getAttribute('data-bairro');
+                this.querySelector('#edit_cidade_con').value = button.getAttribute('data-cidade');
+            });
+        }
+        
+        /* ================= MÁSCARA PARA COORDENADAS GEOGRÁFICAS (GMS) ================= */
+        function setupCoordinateMasks() {
+            const latInputs = document.querySelectorAll('#latitude_ver, #edit_latitude_ver');
+            const lonInputs = document.querySelectorAll('#longitude_ver, #edit_longitude_ver');
 
-                const modal = this;
-                modal.querySelector('#edit_projeto_id').value = id;
-                modal.querySelector('#edit_nome_projeto').value = nome;
-                modal.querySelector('#edit_endereco_projeto').value = endereco;
-                modal.querySelector('#edit_area_projeto').value = area;
-                modal.querySelector('#edit_perimetro_projeto').value = perimetro;
-                modal.querySelector('#edit_epoca_medicao').value = epoca_medicao;
-                modal.querySelector('#edit_instrumento').value = instrumento;
-            });                            
-        });
+            function applyGmsMask(input, direction) {
+                input.addEventListener('input', function() {
+                    // Remove tudo que não é número
+                    let v = this.value.replace(/\D/g, '');
+                    
+                    // Limite de 9 dígitos: DD MM SS sss (Ex: 27 40 22 763)
+                    if (v.length > 9) v = v.slice(0, 9);
+                    
+                    let res = "";
+                    if (v.length > 0) {
+                        // Graus (DD)
+                        res += v.substring(0, 2);
+                        if (v.length > 2) {
+                            // Minutos (MM)
+                            res += "°" + v.substring(2, 4);
+                            if (v.length > 4) {
+                                // Segundos Inteiros (SS)
+                                res += "'" + v.substring(4, 6);
+                                if (v.length > 6) {
+                                    // Segundos Decimais (sss) + Símbolos finais
+                                    res += "." + v.substring(6, 9) + '" ' + direction;
+                                }
+                            }
+                        }
+                    }
+                    this.value = res;
+                });
+
+                // Previne que o usuário apague apenas os símbolos e quebre a máscara
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === "Backspace") {
+                        let v = this.value;
+                        // Se o último caractere for um símbolo, apaga ele e o número anterior
+                        if (v.endsWith(' ') || v.endsWith('"') || v.endsWith('°') || v.endsWith("'") || v.endsWith('.')) {
+                            // O evento 'input' cuidará da limpeza, apenas deixamos prosseguir
+                        }
+                    }
+                });
+            }
+
+            // Aplica 'O' para Longitude e 'S' para Latitude
+            latInputs.forEach(el => applyGmsMask(el, 'S'));
+            lonInputs.forEach(el => applyGmsMask(el, 'O'));
+        }
+        
+        /* ================= MÁSCARA DE CPF/CNPJ ================= */
+        
+        function setupCpfCnpjMasks() {
+            const cpfCnpjInputs = document.querySelectorAll('.cpf-cnpj-input');
+            
+            cpfCnpjInputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    let value = this.value.replace(/\D/g, '');
+                    
+                    if (value.length <= 11) {
+                        // CPF: 000.000.000-00
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                        value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                    } else {
+                        // CNPJ: 00.000.000/0000-00
+                        value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                        value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                        value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                        value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                    }
+                    
+                    this.value = value;
+                });
+            });
+        }
+        
+        /* ================= FUNÇÃO DE MÁSCARA COM LIMITES (ATUALIZADA) ================= */
+        function setupRealTimeMasks() {
+            // Configuração para Distâncias (Geralmente livre, mas deixaremos 10 dígitos)
+            const targets2Dec = ['#distancia_ver', '#edit_distancia_ver', '#area_projeto', '#perimetro_projeto'];
+            
+            // Configuração Norte (7 inteiros + 3 decimais = 10 dígitos total)
+            const targetsNorte = ['#utm_n_ver', '#edit_utm_n_ver'];
+            
+            // Configuração Este (6 inteiros + 3 decimais = 9 dígitos total)
+            const targetsEste = ['#utm_e_ver', '#edit_utm_e_ver'];
+
+            function applyMask(selector, decimals, maxDigits) {
+                const inputs = document.querySelectorAll(selector);
+                inputs.forEach(input => {
+                    input.addEventListener('input', function() {
+                        // Remove tudo que não é dígito
+                        let value = this.value.replace(/\D/g, '');
+                        
+                        // Aplica o limite máximo de dígitos
+                        if (value.length > maxDigits) {
+                            value = value.slice(0, maxDigits);
+                        }
+                        
+                        if (value === '') return;
+
+                        // Converte para número respeitando as casas decimais
+                        let number = (parseFloat(value) / Math.pow(10, decimals)).toFixed(decimals);
+                        
+                        // Formata para o padrão BR (Ponto no milhar, vírgula no decimal)
+                        let parts = number.split('.');
+                        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                        
+                        this.value = parts.join(',');
+                    });
+                });
+            }
+
+            // Aplicando as regras solicitadas:
+            applyMask(targets2Dec.join(','), 2, 12);     // Distância/Área: até 12 dígitos
+            applyMask(targetsNorte.join(','), 3, 10);    // Norte: X.XXX.XXX,XXX (10 dígitos)
+            applyMask(targetsEste.join(','), 3, 9);      // Este: XXX.XXX,XXX (9 dígitos)
+        }
+
+        /* ================= INICIALIZAÇÃO ================= */
+        
+        setupRealTimeMasks();
+        setupFormProcessing();
+        setupCoordinateMasks();
+        setupCpfCnpjMasks();
+        
+        /* ================= TESTES ================= */
+        
+        console.log('=== TESTES DE FORMATAÇÃO ===');
+        console.log('Distância "80,29" -> backend:', formatForBackend('80,29', 'distancia'));
+        console.log('Distância "80.29" -> backend:', formatForBackend('80.29', 'distancia'));
+        console.log('Distância "1.234,56" -> backend:', formatForBackend('1.234,56', 'distancia'));
+        
+        console.log('UTM "6.936.542,588" -> backend:', formatForBackend('6.936.542,588', 'utm'));
+        console.log('UTM "745.565,774" -> backend:', formatForBackend('745.565,774', 'utm'));
+        
+        console.log('UTM "6936542.588" -> display:', formatForDisplay('6936542.588', 'utm_norte'));
+        console.log('UTM "745565.774" -> display:', formatForDisplay('745565.774', 'utm_este'));
+    });
     </script>
+
+    <script>
+    const input = document.getElementById("pesquisa");
+    const lista = document.getElementById("lista-sugestoes");
+    const selectProjetos = document.getElementById("projeto_filtro");
+
+    let timeout = null;
+
+    input.addEventListener("input", () => {
+        clearTimeout(timeout);
+
+        const termo = input.value.trim();
+
+        if (termo.length < 2) {
+            lista.style.display = "none";
+            return;
+        }
+
+        timeout = setTimeout(() => {
+            fetch(`/buscar-projetos/?q=${encodeURIComponent(termo)}`)
+                .then(res => res.json())
+                .then(data => {
+                    lista.innerHTML = "";
+
+                    if (data.length === 0) {
+                        lista.style.display = "none";
+                        return;
+                    }
+
+                    data.forEach(p => {
+                        const item = document.createElement("li");
+                        item.className = "list-group-item list-group-item-action";
+                        item.textContent = p.nome;
+
+                        item.addEventListener("click", () => {
+                            input.value = p.nome;
+                            lista.style.display = "none";
+
+                            // seleciona no <select>
+                            selectProjetos.value = p.id;
+                            selectProjetos.dispatchEvent(new Event("change"));
+                        });
+
+                        lista.appendChild(item);
+                    });
+
+                    lista.style.display = "block";
+                });
+        }, 300);
+    });
+
+    // fecha ao clicar fora
+    document.addEventListener("click", e => {
+        if (!e.target.closest(".position-relative")) {
+            lista.style.display = "none";
+        }
+    });
+    </script>
+
+    <script>
+    const cpfInput = document.getElementById("cpf_cnpj");
+
+    cpfInput.addEventListener("blur", () => {
+        const doc = cpfInput.value.trim();
+        if (doc.length < 11) return;
+
+        fetch(`/buscar-pessoa/?doc=${doc}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.encontrado) return;
+
+                document.getElementById("nome").value = data.nome || "";
+                document.getElementById("rua").value = data.rua || "";
+                document.getElementById("numero").value = data.numero || "";
+                document.getElementById("bairro").value = data.bairro || "";
+                document.getElementById("cidade").value = data.cidade || "";
+            });
+    });
+    </script>
+
+
+
 </body>
 </html>

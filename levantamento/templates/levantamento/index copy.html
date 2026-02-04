@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Memorial Descritivo</title>
+    <title>Gerador de Levantamentos Topográficos</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <div class="container my-5">
-        <h1 class="text-center mb-4">Gerador de Memorial Descritivo</h1>
+        <h1 class="text-center mb-4">Gerador de Levantamentos Topográficos</h1>
 
         <!-- Mensagens -->
         {% if messages %}
@@ -35,77 +35,15 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="projeto_filtro" class="form-label">Projeto</label>
-                            <div class="d-flex align-items-center">
-                                <select class="form-select" id="projeto_filtro" name="projeto_filtro" onchange="this.form.submit()">
-                                    <option value="" disabled {% if not projeto_selecionado %}selected{% endif %}>Selecione um projeto</option>
-                                    {% for projeto in projetos %}
-                                        <option value="{{ projeto.id }}" {% if projeto_selecionado.id == projeto.id %}selected{% endif %}>{{ projeto.nome }}</option>
-                                    {% endfor %}
-                                </select>
-                                {% if projeto_selecionado %}
-                                    <button type="button" class="btn btn-sm btn-warning ms-2" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#editProjetoModal" 
-                                            data-id="{{ projeto_selecionado.id }}" 
-                                            data-nome="{{ projeto_selecionado.nome }}" 
-                                            data-endereco="{{ projeto_selecionado.endereco }}" 
-                                            data-area="{{ projeto_selecionado.area|floatformat:2 }}" 
-                                            data-perimetro="{{ projeto_selecionado.perimetro|floatformat:2 }}" 
-                                            data-epoca_medicao="{{ projeto_selecionado.epoca_medicao }}" 
-                                            data-instrumento="{{ projeto_selecionado.instrumento }}">Editar Projeto</button>
-                                {% endif %}
-                            </div>
+                            <select class="form-select" id="projeto_filtro" name="projeto_filtro" onchange="this.form.submit()">
+                                <option value="" disabled {% if not projeto_selecionado %}selected{% endif %}>Selecione um projeto</option>
+                                {% for projeto in projetos %}
+                                    <option value="{{ projeto.id }}" {% if projeto_selecionado.id == projeto.id %}selected{% endif %}>{{ projeto.nome }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                 </form>
-
-                <!-- Modal para Editar Projeto -->
-                <div class="modal fade" id="editProjetoModal" tabindex="-1" aria-labelledby="editProjetoModalLabel" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="editProjetoModalLabel">Editar Projeto</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <form method="POST">
-                                <div class="modal-body">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="edit_projeto">
-                                    <input type="hidden" name="projeto_id" id="edit_projeto_id">
-                                    <div class="mb-3">
-                                        <label for="edit_nome_projeto" class="form-label">Nome do Projeto</label>
-                                        <input type="text" class="form-control" id="edit_nome_projeto" name="nome_projeto" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_endereco_projeto" class="form-label">Endereço</label>
-                                        <input type="text" class="form-control" id="edit_endereco_projeto" name="endereco_projeto" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_area_projeto" class="form-label">Área (m²)</label>
-                                        <input type="text" class="form-control" id="edit_area_projeto" name="area_projeto" required pattern="^\d+(,\d{1,2})?$" title="Digite um número no formato 1000,50 (use vírgula como separador decimal)">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_perimetro_projeto" class="form-label">Perímetro (m)</label>
-                                        <input type="text" class="form-control" id="edit_perimetro_projeto" name="perimetro_projeto" required pattern="^\d+(,\d{1,2})?$" title="Digite um número no formato 150,75 (use vírgula como separador decimal)">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_epoca_medicao" class="form-label">Época da Medição</label>
-                                        <input type="text" class="form-control" id="edit_epoca_medicao" name="epoca_medicao" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="edit_instrumento" class="form-label">Instrumento Utilizado</label>
-                                        <input type="text" class="form-control" id="edit_instrumento" name="instrumento" required>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
 
                 <!-- Formulário para Adicionar Novo Projeto -->
                 <h3 class="h6 mb-3">Adicionar Novo Projeto</h3>
@@ -117,17 +55,26 @@
                             <label for="nome_projeto" class="form-label">Nome</label>
                             <input type="text" class="form-control" id="nome_projeto" name="nome_projeto" placeholder="Ex.: Fazenda Boa Vista" required>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Inscrição Imobiliária</label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                name="inscricao_imobiliaria"
+                                placeholder="Ex: 01.02.003.0456.000"
+                            >
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="endereco_projeto" class="form-label">Endereço</label>
                             <input type="text" class="form-control" id="endereco_projeto" name="endereco_projeto" placeholder="Ex.: Rua Principal, s/n" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="area_projeto" class="form-label">Área (m²)</label>
-                            <input type="text" class="form-control" id="area_projeto" name="area_projeto" placeholder="Ex.: 1000,50" required pattern="^\d+,\d{1,2}$" title="Digite um número no formato 1000,50 (use vírgula como separador decimal)">
+                            <input type="number" step="0.01" class="form-control" id="area_projeto" name="area_projeto" placeholder="Ex.: 1000.50" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="perimetro_projeto" class="form-label">Perímetro (m)</label>
-                            <input type="text" class="form-control" id="perimetro_projeto" name="perimetro_projeto" placeholder="Ex.: 150.75" required pattern="^\d+,\d{1,2}$" title="Digite um número no formato 150,75 (use vírgula como separador decimal)">
+                            <input type="number" step="0.01" class="form-control" id="perimetro_projeto" name="perimetro_projeto" placeholder="Ex.: 150.75" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="epoca_medicao" class="form-label">Época da Medição</label>
@@ -147,13 +94,14 @@
         {% if projeto_selecionado %}
             <div class="card mb-4">
                 <div class="card-header">
-                    <h2 class="h5 mb-0">Projeto Selecionado: {{ projeto_selecionado.nome }}</h2>
+                    <h2 class="h5 mb-0">Informações do Projeto: {{ projeto_selecionado.nome }}</h2>
                 </div>
                 <div class="card-body">
                     <p><strong>Nome:</strong> {{ projeto_selecionado.nome }}</p>
+                    <p><strong>Inscrição Imobiliária:</strong> {{ projeto_selecionado.inscricao_imobiliaria }}</p>
                     <p><strong>Endereço:</strong> {{ projeto_selecionado.endereco }}</p>
-                    <p><strong>Área:</strong> {{ projeto_selecionado.area|floatformat:2 }} m²</p>
-                    <p><strong>Perímetro:</strong> {{ projeto_selecionado.perimetro|floatformat:2 }} m</p>
+                    <p><strong>Área:</strong> {{ projeto_selecionado.area }} m²</p>
+                    <p><strong>Perímetro:</strong> {{ projeto_selecionado.perimetro }} m</p>
                     <p><strong>Época da Medição:</strong> {{ projeto_selecionado.epoca_medicao }}</p>
                     <p><strong>Instrumento Utilizado:</strong> {{ projeto_selecionado.instrumento }}</p>
                 </div>
@@ -527,8 +475,8 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                         <ul class="list-group">
                             {% for ver in vertices %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }}: 
-                                    {{ ver.longitude }}, {{ ver.latitude }}, {{ ver.distancia|floatformat:2 }}m, 
+                                    {{ ver.de_vertice }} -> {{ ver.para_vertice }} : 
+                                    {{ ver.longitude }} | {{ ver.latitude }} | {{ ver.utm_n|floatformat:3 }} | {{ ver.utm_e|floatformat:3 }} | {{ ver.distancia }}m |  
                                     {% if ver.confrontante %}
                                         {{ ver.confrontante.nome }} ({{ ver.confrontante.cpf_cnpj }})
                                     {% else %}
@@ -543,7 +491,9 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                                 data-para_vertice="{{ ver.para_vertice }}" 
                                                 data-longitude="{{ ver.longitude }}" 
                                                 data-latitude="{{ ver.latitude }}" 
-                                                data-distancia="{{ ver.distancia|floatformat:2 }}" 
+                                                data-distancia="{{ ver.distancia|floatformat:2|default:'0.00' }}"
+                                                data-utmn="{{ ver.utm_n }}"
+                                                data-utme="{{ ver.utm_e }}"
                                                 data-confrontante_id="{% if ver.confrontante %}{{ ver.confrontante.id }}{% endif %}" 
                                                 data-confrontante_texto="{{ ver.confrontante_texto|default_if_none:'' }}">Editar</button>
                                         <form method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este vértice?');">
@@ -585,16 +535,27 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593\" O" required>
+                                    <input type="text" class="form-control coord-mask" id="longitude_ver" name="longitude_ver" placeholder="Ex.: 48°29'05.593" O" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418\" S" required>
+                                    <input type="text" class="form-control coord-mask" id="latitude_ver" name="latitude_ver" placeholder="Ex.: 27°27'16.418" S" required>
                                 </div>
+                                <!-- Adicionar -->
                                 <div class="mb-3">
                                     <label for="distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="number" step="0.01" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 3.22" required>
+                                    <input type="text" class="form-control" id="distancia_ver" name="distancia_ver" placeholder="Ex.: 3.22" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control utm-norte" id="utm_n_ver" name="utm_n_ver" placeholder="Ex: 6956911,591">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control utm-este" id="utm_e_ver" name="utm_e_ver" placeholder="Ex: 755924,028">
+                                </div>
+
                                 <div class="mb-3">
                                     <label for="confrontante_ver" class="form-label">Confrontante</label>
                                     <select class="form-select" id="confrontante_ver" name="confrontante_ver">
@@ -638,16 +599,27 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_longitude_ver" class="form-label">Longitude</label>
-                                    <input type="text" class="form-control" id="edit_longitude_ver" name="longitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_longitude_ver" name="longitude_ver" required>
                                 </div>
                                 <div class="mb-3">
                                     <label for="edit_latitude_ver" class="form-label">Latitude</label>
-                                    <input type="text" class="form-control" id="edit_latitude_ver" name="latitude_ver" required>
+                                    <input type="text" class="form-control coord-mask" id="edit_latitude_ver" name="latitude_ver" required>
                                 </div>
+                                <!-- Editar -->
                                 <div class="mb-3">
                                     <label for="edit_distancia_ver" class="form-label">Distância (m)</label>
-                                    <input type="text" class="form-control" id="edit_distancia_ver" name="distancia_ver" required pattern="^\d+(,\d{1,2}?$" title="Digite um número no formato 12,34 (use vírgula como separador decimal)">
+                                    <input type="text" class="form-control" id="edit_distancia_ver" name="distancia_ver" required>
                                 </div>
+                                <div class="mb-3">
+                                    <label for="edit_utm_n_ver" class="form-label">N (UTM)</label>
+                                    <input type="text" class="form-control utm-norte" id="edit_utm_n_ver" name="utm_n_ver">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="edit_utm_e_ver" class="form-label">E (UTM)</label>
+                                    <input type="text" class="form-control utm-este" id="edit_utm_e_ver" name="utm_e_ver">
+                                </div>
+
                                 <div class="mb-3">
                                     <label for="edit_confrontante_ver" class="form-label">Confrontante</label>
                                     <select class="form-select" id="edit_confrontante_ver" name="confrontante_ver">
@@ -686,6 +658,8 @@ Maria Oliveira    123.456.789-00    Sul    Rua do Sol    456    Centro    Floria
                                     <input type="file" class="form-control" id="arquivo_vertices" name="arquivo_vertices" accept=".txt" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Importar Vértices</button>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importUtmModal">Importar UTM</button>
+
                             </form>
                             <p class="mt-3">Formato do TXT: Cada linha deve conter: De Vértice, Para Vértice, Longitude, Latitude, Distância, Nome do Confrontante, CPF/CNPJ do Confrontante (opcional), separados por tabulação.</p>
                             <p>Exemplo:</p>
@@ -697,6 +671,44 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                     </div>
                 </div>
             </div>
+
+            <div class="modal fade" id="importUtmModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Importar Coordenadas UTM (Somente Completar)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="importar_utm">
+                                <input type="hidden" name="projeto_ver" value="{{ projeto_selecionado.id }}">
+
+                                <div class="mb-3">
+                                    <label class="form-label">Arquivo TXT (UTM)</label>
+                                    <input type="file" class="form-control" name="arquivo_utm" accept=".txt" required>
+                                </div>
+
+                                <button type="submit" class="btn btn-success">Importar UTM</button>
+                            </form>
+
+                            <hr>
+
+                            <p><strong>Formato do arquivo:</strong></p>
+                            <pre>
+V01, 6956911.591, 755924.028
+V02, 6956911.607, 755916.946
+V03, 6956938.278, 755917.617
+V04, 6956938.013, 755924.694
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+  
+
 
             <!-- Botão para Gerar Memorial -->
             <div class="card mb-4">
@@ -710,15 +722,11 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                         <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
                         <button type="submit" class="btn btn-success">Gerar e Baixar Memorial</button>
                     </form>
-                    <!-- Formulário para gerar o PDF com opção de anonimização -->
+                    <!-- Novo botão para gerar o PDF -->
                     <form method="POST" class="d-inline-block ms-2">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="gerar_memorial_pdf">
                         <input type="hidden" name="projeto_memorial" value="{{ projeto_selecionado.id }}">
-                        <div class="form-check form-switch mb-2">
-                            <input type="checkbox" class="form-check-input" name="anonimizar_cpf_cnpj" id="anonimizar_cpf_cnpj" value="1">
-                            <label class="form-check-label" for="anonimizar_cpf_cnpj">Anonimizar CPF/CNPJ (substituir por XXX.XXX.XXX-XX)</label>
-                        </div>
                         <button type="submit" class="btn btn-primary">Gerar Memorial (PDF)</button>
                     </form>
                 </div>
@@ -730,14 +738,52 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/inputmask.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Máscara para CPF/CNPJ
-            Inputmask({
-                mask: ['999.999.999-99', '99.999.999/9999-99'],
-                keepStatic: true,
-                placeholder: " "
-            }).mask(document.querySelectorAll('.cpf-cnpj'));
+    document.addEventListener('DOMContentLoaded', function () {
 
+        /* ================= CPF / CNPJ ================= */
+        Inputmask({
+            mask: ['999.999.999-99', '99.999.999/9999-99'],
+            keepStatic: true,
+            placeholder: " "
+        }).mask(document.querySelectorAll('.cpf-cnpj'));
+
+        /* ================= UTM NORTE ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 3,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            allowMinus: false
+        }).mask(document.querySelectorAll('.utm-norte'));
+
+        /* ================= UTM ESTE ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 3,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            allowMinus: false
+        }).mask(document.querySelectorAll('.utm-este'));
+
+        /* ================= DISTÂNCIA ================= */
+        Inputmask({
+            alias: "numeric",
+            groupSeparator: ".",
+            radixPoint: ",",
+            digits: 2,
+            digitsOptional: false,
+            autoGroup: true,
+            rightAlign: false,
+            allowMinus: false
+        }).mask(document.querySelectorAll('#distancia_ver, #edit_distancia_ver'));
+
+            
             // Preencher o modal de edição de beneficiário
             const editBeneficiarioModal = document.getElementById('editBeneficiarioModal');
             editBeneficiarioModal.addEventListener('show.bs.modal', function (event) {
@@ -794,6 +840,8 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                 const longitude = button.getAttribute('data-longitude');
                 const latitude = button.getAttribute('data-latitude');
                 const distancia = button.getAttribute('data-distancia');
+                const utm_n = button.getAttribute('data-utmn');
+                const utm_e = button.getAttribute('data-utme');
                 const confrontante_id = button.getAttribute('data-confrontante_id');
                 const confrontante_texto = button.getAttribute('data-confrontante_texto');
 
@@ -803,38 +851,86 @@ V02    V03    48°29'05.653" O    27°27'16.328" S    17.09    Vilmar Ferreira F
                 modal.querySelector('#edit_para_vertice').value = para_vertice;
                 modal.querySelector('#edit_longitude_ver').value = longitude;
                 modal.querySelector('#edit_latitude_ver').value = latitude;
-                // Garantir que a distância seja formatada corretamente
-                let distanciaFormatada = distancia.replace('.', ','); // Substituir ponto por vírgula, se houver
-                if (!distanciaFormatada.match(/^\d+(,\d{1,2})?$/)) {
-                distanciaFormatada = distancia; // Manter o valor original se já estiver correto
-                }
                 modal.querySelector('#edit_distancia_ver').value = distancia;
+                if (utm_n) {
+                    modal.querySelector('#edit_utm_n_ver').value =
+                        parseFloat(utm_n).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3
+                        });
+                }
+
+                if (utm_e) {
+                    modal.querySelector('#edit_utm_e_ver').value =
+                        parseFloat(utm_e).toLocaleString('pt-BR', {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3
+                        });
+                }
                 modal.querySelector('#edit_confrontante_ver').value = confrontante_id || '';
                 modal.querySelector('#edit_confrontante_texto').value = confrontante_texto;
             });
-
-            // Preencher o modal de edição de projeto
-            const editProjetoModal = document.getElementById('editProjetoModal');
-            editProjetoModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const id = button.getAttribute('data-id');
-                const nome = button.getAttribute('data-nome');
-                const endereco = button.getAttribute('data-endereco');
-                const area = button.getAttribute('data-area');
-                const perimetro = button.getAttribute('data-perimetro');
-                const epoca_medicao = button.getAttribute('data-epoca_medicao');
-                const instrumento = button.getAttribute('data-instrumento');
-
-                const modal = this;
-                modal.querySelector('#edit_projeto_id').value = id;
-                modal.querySelector('#edit_nome_projeto').value = nome;
-                modal.querySelector('#edit_endereco_projeto').value = endereco;
-                modal.querySelector('#edit_area_projeto').value = area;
-                modal.querySelector('#edit_perimetro_projeto').value = perimetro;
-                modal.querySelector('#edit_epoca_medicao').value = epoca_medicao;
-                modal.querySelector('#edit_instrumento').value = instrumento;
-            });                            
         });
     </script>
+
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function aplicarMascaraCoordenada(input) {
+
+            input.addEventListener("input", function () {
+                let v = input.value.toUpperCase();
+
+                // Remove tudo que não for número ou letra
+                v = v.replace(/[^0-9NSO]/g, "");
+
+                // Detecta hemisfério
+                let hemisferio = "";
+                if (v.endsWith("N") || v.endsWith("S") || v.endsWith("O")) {
+                    hemisferio = " " + v.slice(-1);
+                    v = v.slice(0, -1);
+                }
+
+                // Aplica máscara progressiva
+                if (v.length > 2)
+                    v = v.slice(0, 2) + "°" + v.slice(2);
+
+                if (v.length > 5)
+                    v = v.slice(0, 5) + "'" + v.slice(5);
+
+                if (v.length > 8)
+                    v = v.slice(0, 8) + "." + v.slice(8);
+
+                if (v.length > 12)
+                    v = v.slice(0, 12) + "\"" + hemisferio;
+
+                input.value = v;
+            });
+
+        }
+
+        document.querySelectorAll(".coord-mask").forEach(aplicarMascaraCoordenada);
+    });
+    
+    </script>
+
+    <script>
+    /* ================= CONVERSÃO FINAL NO SUBMIT ================= */
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function () {
+
+            form.querySelectorAll('.utm-norte, .utm-este, #distancia_ver, #edit_distancia_ver')
+                .forEach(input => {
+                    if (input.value && input.inputmask) {
+                        input.value = input.inputmask.getNumber();
+                    }
+                });
+
+        });
+    });
+    </script>
+
+
 </body>
 </html>
